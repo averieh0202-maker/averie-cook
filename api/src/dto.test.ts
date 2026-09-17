@@ -4,6 +4,7 @@ import {
   assertPublicPayload,
   buildCoverUrl,
   jsonContainsPrivateTokens,
+  parseRatingScore,
   pickPublicKeys,
   sanitizeCoverPath,
   toOwnerDish,
@@ -40,10 +41,10 @@ function sampleRow(): DishRow {
     published: 1,
     created_at: "2026-09-14T00:00:00.000Z",
     updated_at: "2026-09-14T00:00:00.000Z",
-    rating_sum: 9,
+    rating_sum: 16,
     rating_count: 2,
     want_eat_count: 3,
-    my_score: 5,
+    my_score: 8,
     wanted: 1,
   };
 }
@@ -63,7 +64,7 @@ test("public DTO never contains recipe or private keys", () => {
   const dish = pickPublicKeys(
     toPublicDish(row, catalog, "https://averieh0202-maker.github.io/averie-cook", "https://api.example"),
   );
-  assert.equal(dish.ratingAvg, 4.5);
+  assert.equal(dish.ratingAvg, 8);
   assert.equal(dish.coverUrl, "https://averieh0202-maker.github.io/averie-cook/uploads/2026-09-14-chicken-pumpkin-risotto.jpg");
   assert.deepEqual(
     dish.categories.map((c) => c.name),
@@ -89,6 +90,19 @@ test("owner DTO includes recipe after authentication", () => {
   assert.ok(dish.recipe);
   assert.equal((dish.recipe as { summary?: string }).summary, "secret");
   assert.equal(dish.coverPath, "uploads/2026-09-14-chicken-pumpkin-risotto.jpg");
+});
+
+test("owner DTO rating stays on the 1–10 scale", () => {
+  const dish = toOwnerDish(
+    sampleRow(),
+    catalog,
+    "https://averieh0202-maker.github.io/averie-cook",
+    "https://api.example",
+  );
+  assert.equal(dish.myScore, 8);
+  assert.equal(dish.ratingAvg, 8);
+  assert.equal(parseRatingScore(10), 10);
+  assert.equal(parseRatingScore(5), 5);
 });
 
 test("buildCoverUrl routes KV covers through the API origin", () => {

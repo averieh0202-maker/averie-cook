@@ -1,7 +1,8 @@
 import { getVisitorKey } from "./visitor";
-import type { Dish } from "./types";
+import type { Category, Dish } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+const OWNER_TOKEN_KEY = "averie_owner_token";
 
 export class ApiError extends Error {
   status: number;
@@ -11,9 +12,38 @@ export class ApiError extends Error {
   }
 }
 
+export function getOwnerToken(): string | null {
+  try {
+    const token = localStorage.getItem(OWNER_TOKEN_KEY);
+    return token && token.trim() ? token.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setOwnerToken(token: string): void {
+  try {
+    localStorage.setItem(OWNER_TOKEN_KEY, token);
+  } catch {
+    // private mode / blocked storage — cookie path may still work same-origin
+  }
+}
+
+export function clearOwnerToken(): void {
+  try {
+    localStorage.removeItem(OWNER_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("X-Visitor-Key", getVisitorKey());
+  const ownerToken = getOwnerToken();
+  if (ownerToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${ownerToken}`);
+  }
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
@@ -37,6 +67,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(msg, res.status);
   }
   return data as T;
+}
+
+export function listCategories() {
+  return request<{ categories: Category[] }>("/api/categories");
 }
 
 export function listDishes(status: "cooked" | "want_cook" | "want_eat") {
@@ -65,13 +99,18 @@ export function ownerMe() {
   return request<{ owner: boolean }>("/api/owner/me");
 }
 
-export function ownerLogin(password: string) {
-  return request<{ ok: boolean; owner: boolean }>("/api/owner/login", {
+export async function ownerLogin(password: string) {
+  const res = await request<{ ok: boolean; owner: boolean; token?: string }>("/api/owner/login", {
     method: "POST",
     body: JSON.stringify({ password }),
   });
+  if (typeof res.token === "string" && res.token.trim()) {
+    setOwnerToken(res.token.trim());
+  }
+  return res;
 }
 
-export function ownerLogout() {
+export async function ownerLogout() {
+  clearOwnerToken();
   return request<{ ok: boolean; owner: boolean }>("/api/owner/logout", { method: "POST" });
 }

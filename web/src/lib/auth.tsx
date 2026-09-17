@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { ownerMe, ownerLogout } from "./api";
+import { clearOwnerToken, ownerMe, ownerLogout } from "./api";
 
 type AuthState = {
   owner: boolean;
@@ -23,6 +23,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const me = await ownerMe();
       setOwner(me.owner);
+      if (!me.owner) clearOwnerToken();
     } catch {
       setOwner(false);
     } finally {
@@ -43,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await ownerLogout();
         } finally {
+          clearOwnerToken();
           setOwner(false);
         }
       },

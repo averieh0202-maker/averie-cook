@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
+import { categoryLabel } from "../lib/categories";
 import { copy } from "../lib/copy";
+import { formatCookedAt } from "../lib/format";
 import type { Dish } from "../lib/types";
 import { Cover } from "./Cover";
-import { Stars } from "./Stars";
+import { RatingMark } from "./Rating";
 import { WantEatButton } from "./WantEatButton";
 
 export function DishCard({
@@ -16,48 +18,37 @@ export function DishCard({
 }) {
   const to = `/dishes/${encodeURIComponent(dish.id)}`;
   return (
-    <article className="overflow-hidden rounded-3xl bg-card shadow-card">
+    <article className="overflow-hidden rounded-[1.7rem] bg-card shadow-card">
       <Link to={to} className="block">
         <Cover dish={dish} />
       </Link>
-      <div className="space-y-3 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-serif text-xl leading-snug text-ink">
-              <Link to={to}>{dish.title}</Link>
-            </h2>
-            {dish.cookedAt ? (
-              <p className="mt-1 text-sm text-mute">{dish.cookedAt}</p>
-            ) : dish.status === "cooked" ? (
-              <p className="mt-1 text-sm text-mute">{copy.cookedMark}</p>
-            ) : null}
+      <div className="space-y-3.5 px-4 pb-4 pt-3.5">
+        <div>
+          <h2 className="font-serif text-[1.35rem] leading-snug tracking-wide text-ink">
+            <Link to={to}>{dish.title}</Link>
+          </h2>
+          {dish.cookedAt ? (
+            <p className="mt-2 font-serif text-lg leading-none tracking-wide text-ink/75">
+              {formatCookedAt(dish.cookedAt)}
+            </p>
+          ) : dish.status === "cooked" ? (
+            <p className="mt-2 text-base text-mute">{copy.cookedMark}</p>
+          ) : null}
+        </div>
+        <RatingMark avg={dish.ratingAvg} count={dish.ratingCount} />
+        {dish.categories.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {dish.categories.map((cat) => (
+              <span key={cat.id} className="rounded-full bg-chip px-2.5 py-0.5 text-xs tracking-wide text-ink/75">
+                {categoryLabel(cat)}
+              </span>
+            ))}
           </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {dish.categories.map((cat) => (
-            <span key={cat.id} className="rounded-full bg-chip px-2.5 py-0.5 text-xs text-ink/80">
-              {cat.name}
-            </span>
-          ))}
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-sm text-mute">
-            {dish.ratingAvg != null ? (
-              <>
-                <Stars value={Math.round(dish.ratingAvg)} size="sm" />
-                <span>
-                  {dish.ratingAvg} {copy.rating.unit}
-                </span>
-              </>
-            ) : (
-              <span>{copy.rating.none}</span>
-            )}
-            {dish.wantEatCount > 0 ? <span>· {copy.wantEatCount(dish.wantEatCount)}</span> : null}
-          </div>
-        </div>
-        <div className="flex items-center justify-between">
+        ) : null}
+        {dish.wantEatCount > 0 ? <p className="text-sm text-mute">{copy.wantEatCount(dish.wantEatCount)}</p> : null}
+        <div className="flex items-center justify-between pt-0.5">
           <WantEatButton wanted={dish.wanted} count={dish.wantEatCount} busy={busy} onClick={() => onWantEat(dish)} />
-          <Link to={to} className="text-sm font-medium text-clay">
+          <Link to={to} className="text-sm font-medium tracking-wide text-clay">
             {copy.btn.detail}
           </Link>
         </div>

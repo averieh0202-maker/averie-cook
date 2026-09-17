@@ -50,9 +50,9 @@ export function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm py-8">
-      <h1 className="font-serif text-2xl">{copy.btn.login}</h1>
-      <p className="mt-2 text-sm text-mute">{copy.loginHint}</p>
+    <div className="mx-auto max-w-sm px-1 py-10">
+      <h1 className="font-serif text-2xl tracking-wide">{copy.btn.login}</h1>
+      <p className="mt-2 text-sm leading-relaxed text-mute">{copy.loginHint}</p>
       <form className="mt-6 space-y-4" onSubmit={(e) => void onSubmit(e)}>
         <label className="block text-sm">
           密码

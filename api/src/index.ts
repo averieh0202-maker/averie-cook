@@ -11,7 +11,7 @@ import {
   DISH_ID_RE,
   ingestAuthorized,
   isOwner,
-  issueOwnerCookie,
+  issueOwnerSession,
   clearOwnerCookie,
   ownerOrIngest,
   passwordConfigured,
@@ -22,6 +22,7 @@ import {
   assertPublicPayload,
   type Category,
   type DishRow,
+  parseRatingScore,
   pickPublicKeys,
   sanitizeCoverPath,
   toOwnerDish,
@@ -75,7 +76,7 @@ app.use(
       return ALLOWED_ORIGINS.has(origin) ? origin : "";
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "X-Visitor-Key", "X-Ingest-Secret"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Visitor-Key", "X-Ingest-Secret"],
     credentials: true,
     maxAge: 86400,
   }),
@@ -218,9 +219,9 @@ app.post("/api/dishes/:id/rate", async (c) => {
   } catch {
     return c.json({ error: "请求体必须是 JSON" }, 400);
   }
-  const score = Number(body.score);
-  if (!Number.isInteger(score) || score < 1 || score > 5) {
-    return c.json({ error: "score 须为 1–5 的整数" }, 400);
+  const score = parseRatingScore(body.score);
+  if (score == null) {
+    return c.json({ error: "score 须为 1–10 的整数" }, 400);
   }
 
   const dish = await c.env.DB.prepare(
@@ -317,8 +318,10 @@ app.post("/api/owner/login", async (c) => {
   const ok = await timingSafeEqual(password, c.env.OWNER_PASSWORD, c.env.OWNER_SESSION_SECRET);
   if (!ok) return c.json({ error: "密码不对" }, 401);
 
-  await issueOwnerCookie(c);
-  return c.json({ ok: true, owner: true });
+  const token = await issueOwnerSession(c);
+  // token is required on GitHub Pages → workers.dev: third-party cookies are
+  // often blocked even with SameSite=None; Secure; Partitioned.
+  return c.json({ ok: true, owner: true, token });
 });
 
 app.post("/api/owner/logout", async (c) => {
