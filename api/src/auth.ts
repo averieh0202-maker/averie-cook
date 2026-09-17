@@ -9,6 +9,9 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_MAX_ATTEMPTS = 5;
 const DEV_DEFAULT_PASSWORD = "averie-cook";
 
+export const VISITOR_KEY_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export function isProduction(env: Env): boolean {
   return (env.ENVIRONMENT || "").toLowerCase() === "production";
 }
@@ -28,21 +31,34 @@ export function passwordConfigured(env: Env): { ok: boolean; error?: string } {
   return { ok: true };
 }
 
-export async function timingSafeEqual(a: string, b: string, hmacSecret: string): Promise<boolean> {
+export async function hmacHex(secret: string, message: string): Promise<string> {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
-    enc.encode(hmacSecret),
+    enc.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
   );
-  const ha = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(a)));
-  const hb = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(b)));
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", key, enc.encode(message)));
+  return [...sig].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export async function timingSafeEqual(a: string, b: string, hmacSecret: string): Promise<boolean> {
+  const ha = hexToBytes(await hmacHex(hmacSecret, a));
+  const hb = hexToBytes(await hmacHex(hmacSecret, b));
   if (ha.byteLength !== hb.byteLength) return false;
   let diff = 0;
   for (let i = 0; i < ha.byteLength; i++) diff |= ha[i] ^ hb[i];
   return diff === 0;
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
 }
 
 export function tokenFromAuthorization(header: string | undefined | null): string | null {
@@ -61,6 +77,23 @@ export async function verifyOwnerSession(
     return payload.sub === "owner";
   } catch {
     return false;
+  }
+}
+
+export async function verifyRaterSession(
+  token: string | undefined | null,
+  secret: string | undefined | null,
+): Promise<{ visitorKey: string; displayName: string } | null> {
+  if (!token || !secret) return null;
+  try {
+    const payload = await verify(token, secret, "HS256");
+    if (payload.sub !== "rater") return null;
+    const visitorKey = typeof payload.vk === "string" ? payload.vk.trim().toLowerCase() : "";
+    const displayName = typeof payload.name === "string" ? payload.name.trim() : "";
+    if (!VISITOR_KEY_RE.test(visitorKey) || !displayName) return null;
+    return { visitorKey, displayName };
+  } catch {
+    return null;
   }
 }
 
@@ -156,8 +189,10 @@ export async function ownerOrIngest(c: Context<{ Bindings: Env }>): Promise<bool
 export async function checkLoginRateLimit(
   db: D1Database,
   ip: string,
+  scope = "login",
+  maxAttempts = LOGIN_MAX_ATTEMPTS,
 ): Promise<{ ok: true } | { ok: false; retrySec: number }> {
-  const key = `login:${ip || "unknown"}`;
+  const key = `${scope}:${ip || "unknown"}`;
   const now = Date.now();
   const row = await db
     .prepare("SELECT count, reset_at FROM rate_limits WHERE key = ?")
@@ -173,7 +208,7 @@ export async function checkLoginRateLimit(
       .run();
     return { ok: true };
   }
-  if (row.count >= LOGIN_MAX_ATTEMPTS) {
+  if (row.count >= maxAttempts) {
     return { ok: false, retrySec: Math.max(1, Math.ceil((row.reset_at - now) / 1000)) };
   }
   await db.prepare("UPDATE rate_limits SET count = count + 1 WHERE key = ?").bind(key).run();
@@ -188,14 +223,17 @@ export function clientIp(c: Context): string {
   );
 }
 
-export const VISITOR_KEY_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export function readVisitorKey(c: Context): string | null {
   const raw = (c.req.header("x-visitor-key") || "").trim();
   if (!raw || raw.length > 64) return null;
   if (!VISITOR_KEY_RE.test(raw)) return null;
   return raw.toLowerCase();
+}
+
+export function readRaterToken(c: Context): string | null {
+  const fromHeader = (c.req.header("x-rater-token") || "").trim();
+  if (fromHeader) return fromHeader;
+  return tokenFromAuthorization(c.req.header("Authorization"));
 }
 
 export const DISH_ID_RE = /^[A-Za-z0-9._-]{1,80}$/;

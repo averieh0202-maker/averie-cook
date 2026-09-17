@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Cover } from "../components/Cover";
-import { RatingMark, ScorePicker } from "../components/Rating";
+import { RatingAccountHint, RatingMark, ScorePicker } from "../components/Rating";
 import { WantEatButton } from "../components/WantEatButton";
 import { ApiError, getDish, rateDish, toggleWantEat } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -86,7 +86,7 @@ function failMessage(err: unknown): string {
 
 export function DishPage() {
   const { id = "" } = useParams();
-  const { owner } = useAuth();
+  const { owner, identityEpoch } = useAuth();
   const [dish, setDish] = useState<Dish | null>(null);
   const [asOwner, setAsOwner] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,7 +101,7 @@ export function DishPage() {
     } catch (err) {
       setError(failMessage(err));
     }
-  }, [id]);
+  }, [id, owner, identityEpoch]);
 
   useEffect(() => {
     setDish(null);
@@ -207,6 +207,7 @@ export function DishPage() {
         </div>
         <ScorePicker value={dish.myScore} disabled={busy} onChange={(score) => void onRate(score)} />
         <p className="text-sm text-mute">{dish.myScore ? copy.rating.yours(dish.myScore) : copy.rating.pick}</p>
+        <RatingAccountHint />
         <WantEatButton wanted={dish.wanted} count={dish.wantEatCount} busy={busy} onClick={() => void onWantEat()} />
       </section>
 

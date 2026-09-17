@@ -1,8 +1,10 @@
-import { getVisitorKey } from "./visitor";
+import { getVisitorKey, setVisitorKey, resetVisitorIdentity } from "./visitor";
 import type { Category, Dish } from "./types";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 const OWNER_TOKEN_KEY = "averie_owner_token";
+const RATER_TOKEN_KEY = "averie_rater_token";
+const RATER_NAME_KEY = "averie_rater_name";
 
 export class ApiError extends Error {
   status: number;
@@ -37,6 +39,62 @@ export function clearOwnerToken(): void {
   }
 }
 
+export function getRaterToken(): string | null {
+  try {
+    const token = localStorage.getItem(RATER_TOKEN_KEY);
+    return token && token.trim() ? token.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setRaterToken(token: string): void {
+  try {
+    localStorage.setItem(RATER_TOKEN_KEY, token);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearRaterToken(): void {
+  try {
+    localStorage.removeItem(RATER_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function getCachedRaterName(): string | null {
+  try {
+    const name = localStorage.getItem(RATER_NAME_KEY);
+    return name && name.trim() ? name.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedRaterName(name: string): void {
+  try {
+    localStorage.setItem(RATER_NAME_KEY, name);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearCachedRaterName(): void {
+  try {
+    localStorage.removeItem(RATER_NAME_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function clearRaterSession(): void {
+  clearRaterToken();
+  clearCachedRaterName();
+  resetVisitorIdentity();
+}
+
 const FETCH_TIMEOUT_MS = 8000;
 
 function timeoutSignal(parent: AbortSignal | undefined, ms: number): { signal: AbortSignal; cancel: () => void } {
@@ -62,6 +120,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const ownerToken = getOwnerToken();
   if (ownerToken && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${ownerToken}`);
+  }
+  const raterToken = getRaterToken();
+  if (raterToken && !headers.has("X-Rater-Token")) {
+    headers.set("X-Rater-Token", raterToken);
   }
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -147,4 +209,31 @@ export async function ownerLogin(password: string) {
 export async function ownerLogout() {
   clearOwnerToken();
   return request<{ ok: boolean; owner: boolean }>("/api/owner/logout", { method: "POST" });
+}
+
+export function accountMe() {
+  return request<{ rater: boolean; displayName?: string; visitorKey?: string }>("/api/account/me");
+}
+
+export async function accountLogin(displayName: string, pin: string) {
+  const res = await request<{
+    ok: boolean;
+    rater: boolean;
+    displayName: string;
+    visitorKey: string;
+    token?: string;
+  }>("/api/account/login", {
+    method: "POST",
+    body: JSON.stringify({ displayName, pin }),
+  });
+  if (typeof res.visitorKey === "string" && res.visitorKey.trim()) {
+    setVisitorKey(res.visitorKey.trim());
+  }
+  if (typeof res.token === "string" && res.token.trim()) {
+    setRaterToken(res.token.trim());
+  }
+  if (typeof res.displayName === "string" && res.displayName.trim()) {
+    setCachedRaterName(res.displayName.trim());
+  }
+  return res;
 }

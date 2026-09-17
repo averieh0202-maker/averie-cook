@@ -7,7 +7,9 @@
 
 聊天记录不是档案。成菜总结、完整食谱、封面图都写在 **Cloudflare D1**（结构化）里；图片同时写入 D1 `media_objects`，并可镜像到 **KV / R2**。GitHub Pages 只托管静态前端，**不能**作为运行时写入存储。重新部署 Worker **不会**清空 D1。
 
-首页卡片可直接 **1–10 分评分**（不必进详情）。每人一份 `visitor_key`，展示的是所有访客的平均分。匿名响应仍然不含完整食谱。
+首页卡片可直接 **1–10 分评分**（不必进详情）。每人一个身份（`visitor_key`），平均分按不同身份计算。**同一人再评只改自己的分数，不另算一个人。** 匿名响应仍然不含完整食谱。
+
+本机身份写在 GitHub Pages 源站的 **localStorage + 第一方 cookie**（`SameSite=Lax`，长期有效）。仅靠 localStorage 时，微信内置浏览器或清除站点数据会当成新人反复投票。可选 **昵称 + PIN 账号**，换设备也能找回同一份分数。
 
 大陆手机：前端 **不加载 Google Fonts**（用系统黑体 / 宋体）；烩饭封面从 **GitHub Pages** 出（约 58KB、800px），不再默认走 `workers.dev` `/api/media`。API 超过约 8 秒会提示重试，封面失败则显示色块占位。
 
@@ -147,19 +149,10 @@ npx wrangler deploy
 
 **不要**把 `OWNER_PASSWORD` 设成默认值 `averie-cook`。
 
-合并后：
+合并后请 **先部署 Worker（含 D1 迁移），再等 GitHub Pages**：
 
-1. **GitHub Pages**（push `main` 后 Actions 自动部署）：首页评分、系统字体、压缩封面、骨架屏 / 超时重试。没有 Pages 上的 `covers/*.jpg` 时，前端会回退到 Worker 原图。
-2. **Worker**（本 PR **没有**新的 D1 迁移；评分 API 已存在）：
-
-```sh
-cd api
-npx wrangler deploy
-```
-
-Worker 部署会把种子封面的 JSON `coverUrl` 指到 Pages，并给 `/api/media` 更长的缓存头。可以先等 Pages 再 deploy Worker；反过来也可以（前端会把已知种子封面改写到 Pages）。
-
-若库还停留在旧的 1–5 分约束，仍需先跑过 `0003_ratings_ten_point.sql`：
+1. **Worker + D1**：`0004_raters.sql` 增加评分账号表。不需要新 secret（PIN 哈希复用 `OWNER_SESSION_SECRET`）。
+2. **GitHub Pages**（push `main` 后 Actions 自动部署）：粘性 `visitor_key` cookie、登录评分 UI。
 
 ```sh
 cd api
@@ -167,7 +160,11 @@ npx wrangler d1 migrations apply averie-cook --remote
 npx wrangler deploy
 ```
 
-不跑该迁移的话，新的 6–10 分写入会失败。
+不跑 `0004` 的话，登录评分会失败（缺 `raters` 表）。
+
+Worker 部署还会把种子封面的 JSON `coverUrl` 指到 Pages，并给 `/api/media` 更长的缓存头。
+
+若库还停留在旧的 1–5 分约束，仍需先跑过 `0003_ratings_ten_point.sql`（上面的 `migrations apply` 会按顺序执行未应用的迁移）。不跑 `0003` 的话，新的 6–10 分写入会失败。
 
 ### 2) GitHub Pages（静态前端）
 
@@ -175,11 +172,16 @@ npx wrangler deploy
 2. 合并到 `main` 后等 `Deploy GitHub Pages`
 3. 打开 https://averieh0202-maker.github.io/averie-cook/
 
-## 站长登录
+## 站长登录与评分账号
 
-本地密码：`averie-cook`。生产用 wrangler secret。登录后详情显示材料与步骤。访客用 `localStorage.visitor_key`。
+本地站长密码：`averie-cook`。生产用 wrangler secret。登录后详情显示材料与步骤。
 
-GitHub Pages（`averieh0202-maker.github.io`）和 Worker（`*.workers.dev`）是**不同站**。浏览器经常拦截跨站 `Set-Cookie`（即使 `SameSite=None; Secure; Partitioned`）。因此登录 JSON 会带回 JWT `token`，前端用 `Authorization: Bearer` 发送；cookie 仍用于本地 Vite 同源代理。`GET /api/dishes/:id` 只在站长会话有效时包含 `recipe`；匿名响应继续剥除食谱字段。
+访客评分身份：
+
+1. **匿名（默认）**：`visitor_key` 存在 **localStorage** 和 Pages 源站的第一方 cookie（路径 `/averie-cook` 或 `/`，`SameSite=Lax`，长期 Max-Age）。刷新、返回、部分微信内置浏览器清 localStorage 时，只要 cookie 还在就能对上原来的分。
+2. **评分账号（推荐）**：昵称 + 4–6 位数字 PIN。第一次提交即注册，以后同一组登录。服务端只存 PIN 哈希，API 不返回 PIN。登录后评分都记在该账号的 `visitor_key` 上（`ON CONFLICT` 更新，一人一菜一分）。页眉显示昵称；退出会清空本机身份（需确认），账号和已打的分仍在服务器。
+
+GitHub Pages（`averieh0202-maker.github.io`）和 Worker（`*.workers.dev`）是**不同站**。浏览器经常拦截跨站 `Set-Cookie`（即使 `SameSite=None; Secure; Partitioned`）。因此站长登录 JSON 会带回 JWT `token`，前端用 `Authorization: Bearer` 发送；评分账号同样带回 token，放在 `X-Rater-Token`。cookie 仍用于本地 Vite 同源代理。`GET /api/dishes/:id` 只在站长会话有效时包含 `recipe`；匿名响应继续剥除食谱字段。
 
 ## API 摘要
 
@@ -189,8 +191,10 @@ GitHub Pages（`averieh0202-maker.github.io`）和 Worker（`*.workers.dev`）�
 | GET | `/api/dishes?status=` | 列表，永不返回 recipe |
 | GET | `/api/dishes/:id` | 匿名无 recipe；站长 cookie 或 Bearer 才有 |
 | GET | `/api/media/:file` | 持久化封面 |
-| POST | `/api/dishes/:id/rate` | 1–10 分 |
+| POST | `/api/dishes/:id/rate` | 1–10 分；同一 `visitor_key` 更新，不新增人数 |
 | POST | `/api/dishes/:id/want-eat` | 切换想吃 |
+| POST | `/api/account/login` | 昵称 + PIN → 注册或登录，返回 `visitorKey` 与 token |
+| GET | `/api/account/me` | 当前评分账号（无则 `{ rater: false }`） |
 | POST | `/api/ingest/dishes` | **INGEST_SECRET** 写入菜谱 |
 | POST | `/api/ingest/upload` | **INGEST_SECRET** 存图 |
 | GET | `/api/ingest/health` | ingest 密钥探活 |

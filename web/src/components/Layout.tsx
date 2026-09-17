@@ -9,7 +9,7 @@ const tabs = [
 ];
 
 export function Layout() {
-  const { owner, logout } = useAuth();
+  const { owner, rater, logout, logoutRater } = useAuth();
   const loc = useLocation();
   const hideNav = loc.pathname.startsWith("/login");
 
@@ -20,15 +20,26 @@ export function Layout() {
           <NavLink to="/" className="font-serif text-[1.35rem] tracking-wide text-ink">
             {copy.brand}
           </NavLink>
-          {owner ? (
-            <button type="button" className="text-sm tracking-wide text-mute" onClick={() => void logout()}>
-              {copy.btn.logout}
-            </button>
-          ) : (
-            <NavLink to="/login" className="text-sm tracking-wide text-clay">
-              {copy.btn.login}
-            </NavLink>
-          )}
+          <div className="flex min-w-0 items-baseline gap-2">
+            {rater ? (
+              <span className="max-w-[7.5rem] truncate text-sm tracking-wide text-ink/80" title={rater.displayName}>
+                {rater.displayName}
+              </span>
+            ) : null}
+            {owner ? (
+              <button type="button" className="shrink-0 text-sm tracking-wide text-mute" onClick={() => void logout()}>
+                {copy.btn.logout}
+              </button>
+            ) : rater ? (
+              <button type="button" className="shrink-0 text-sm tracking-wide text-mute" onClick={() => logoutRater()}>
+                {copy.btn.logout}
+              </button>
+            ) : (
+              <NavLink to="/login" className="shrink-0 text-sm tracking-wide text-clay">
+                {copy.btn.login}
+              </NavLink>
+            )}
+          </div>
         </div>
       </header>
       <main className="flex-1 px-3 pb-28 pt-5 sm:px-4">
