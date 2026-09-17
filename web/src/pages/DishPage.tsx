@@ -222,7 +222,7 @@ export function DishPage() {
           <p className="font-medium text-ink">{copy.lock.title}</p>
           <p className="mt-2 text-sm leading-relaxed text-mute">{copy.lock.sub}</p>
           <Link to="/login" className="mt-4 inline-block text-sm text-clay">
-            {copy.btn.login}
+            {copy.btn.loginOwner}
           </Link>
         </section>
       )}
