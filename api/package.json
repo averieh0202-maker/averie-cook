@@ -1,0 +1,22 @@
+{
+  "name": "averie-cook-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler d1 migrations apply averie-cook --local && wrangler dev --port 8787 --ip 127.0.0.1 --local",
+    "deploy": "wrangler d1 migrations apply averie-cook --remote && wrangler deploy",
+    "seed:local": "wrangler d1 migrations apply averie-cook --local",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/*.test.ts"
+  },
+  "dependencies": {
+    "hono": "^4.9.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250913.0",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.132.0"
+  }
+}

@@ -1,0 +1,26 @@
+name = "averie-cook-api"
+main = "src/index.ts"
+compatibility_date = "2026-09-17"
+
+# Replace database_id after: npx wrangler d1 create averie-cook
+[[d1_databases]]
+binding = "DB"
+database_name = "averie-cook"
+database_id = "00000000-0000-0000-0000-000000000001"
+migrations_dir = "migrations"
+
+# Optional: store owner-uploaded covers. Create with:
+#   npx wrangler kv namespace create MEDIA
+# then uncomment and paste the id. Local `wrangler dev` still works without it.
+# [[kv_namespaces]]
+# binding = "MEDIA"
+# id = "00000000000000000000000000000001"
+
+[vars]
+ASSET_BASE_URL = "https://averieh0202-maker.github.io/averie-cook"
+ENVIRONMENT = "production"
+
+# Secrets (never commit values):
+#   npx wrangler secret put OWNER_PASSWORD
+#   npx wrangler secret put OWNER_SESSION_SECRET
+#   npx wrangler secret put INGEST_SECRET
