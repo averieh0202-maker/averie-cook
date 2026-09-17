@@ -1,0 +1,14 @@
+node_modules
+dist
+.wrangler
+.dev.vars
+.DS_Store
+*.log
+.vite
+web/dist
+api/.wrangler
+.turbo
+coverage
+.env
+.env.local
+web/.env.local

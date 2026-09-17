@@ -1,0 +1,25 @@
+{
+  "name": "averie-cook",
+  "private": true,
+  "description": "Averie 做饭档案站 — 做过的 / 想做的 / 想吃的",
+  "workspaces": [
+    "web",
+    "api"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c cyan,magenta \"npm run dev -w api\" \"npm run dev -w web\"",
+    "dev:web": "npm run dev -w web",
+    "dev:api": "npm run dev -w api",
+    "build": "npm run build -w web",
+    "preview": "npm run preview -w web",
+    "test": "npm run test -w api",
+    "typecheck": "npm run typecheck -w web && npm run typecheck -w api",
+    "seed:local": "npm run seed:local -w api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

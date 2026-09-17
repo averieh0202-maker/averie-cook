@@ -1,5 +1,175 @@
-# Averie Cook
+# Averie 做饭档案站
 
-Averie 做饭档案站（做过的 / 想做的 / 想吃的）。食谱仅站长可见。
+手机优先的做饭档案：三人页 **做过的 / 想做的 / 想吃的**。访客可评分、点想吃；**完整食谱仅站长登录后可见**。
 
-Building in progress.
+**长期公开 URL：** https://averieh0202-maker.github.io/averie-cook/  
+**API：** `https://averie-cook-api.averieh0202.workers.dev`（部署后按你的 workers 子域替换）
+
+聊天记录不是档案。成菜总结、完整食谱、封面图都写在 **Cloudflare D1**（结构化）里；图片同时写入 D1 `media_objects`，并可镜像到 **KV / R2**。GitHub Pages 只托管静态前端，**不能**作为运行时写入存储。重新部署 Worker **不会**清空 D1。
+
+## 本地运行
+
+需要 Node.js 22.13+。
+
+```sh
+cp api/.dev.vars.example api/.dev.vars
+npm install
+npm run dev
+```
+
+- 前端：http://127.0.0.1:5173 （Vite 把 `/api` 代理到 Worker）
+- API：http://127.0.0.1:8787
+
+首次访问会把 3 道已做的菜和烩饭封面写入**本地 D1**（已存在的行不会被覆盖）。
+
+单独启动：`npm run dev:api` / `npm run dev:web`
+
+```sh
+npm test
+npm run typecheck
+npm run build
+```
+
+匿名详情不得含 recipe：
+
+```sh
+curl -s http://127.0.0.1:8787/api/dishes/2026-09-14-chicken-pumpkin-risotto
+# 或: bash scripts/verify-recipe-leak.sh
+```
+
+## 环境变量
+
+### 前端（`web/`，构建期）
+
+| 变量 | 说明 |
+|---|---|
+| `VITE_API_BASE_URL` | Worker 源站。生产默认 `https://averie-cook-api.averieh0202.workers.dev`。本地留空，走 Vite 代理。 |
+| `VITE_BASE` | 静态资源前缀。GitHub Pages 为 `/averie-cook/`。 |
+
+### Worker（`api/`）
+
+| 变量 | 类型 | 说明 |
+|---|---|---|
+| `OWNER_PASSWORD` | Secret | 站长登录。本地默认 `averie-cook`。**生产必须改掉**。 |
+| `OWNER_SESSION_SECRET` | Secret | httpOnly JWT，与密码分离，至少 16 位。 |
+| `INGEST_SECRET` | Secret | 米其林大厨写入接口：请求头 `X-Ingest-Secret`。与站长 cookie 分离。 |
+| `ASSET_BASE_URL` | var | Pages 根。生产：`https://averieh0202-maker.github.io/averie-cook` |
+| `ENVIRONMENT` | var | `development` 或 `production`。 |
+
+本地：`cp api/.dev.vars.example api/.dev.vars`（gitignore）。
+
+生产：
+
+```sh
+cd api
+npx wrangler secret put OWNER_PASSWORD
+npx wrangler secret put OWNER_SESSION_SECRET
+npx wrangler secret put INGEST_SECRET
+```
+
+## 如何 seed
+
+种子源文件：`data/seed.json`（与 `api/src/seed.ts` 一致）。烩饭 1:1 封面在 Worker 资源 `api/src/assets/`。
+
+空的 D1 在 Worker **第一次处理业务请求**时导入：
+
+- 8 个分类
+- 3 道已做的菜（含完整 `recipe` JSON，仅站长 API 返回）
+- 烩饭封面 blob → `media_objects`（以及已绑定的 KV/R2）
+
+`INSERT … ON CONFLICT DO NOTHING`：库里已有这三道菜时，**不会**用种子覆盖食谱或评分。刷新页面、重新 `wrangler deploy` 都不会丢 D1 数据（除非有人手动删库）。
+
+本地也可先跑：
+
+```sh
+cd api
+npx wrangler d1 migrations apply averie-cook --local
+npm run dev
+curl -s http://127.0.0.1:8787/api/dishes?status=cooked
+```
+
+应看到 3 道菜。封面 URL 形如 `/api/media/2026-09-14-chicken-pumpkin-risotto.jpg`。
+
+## 如何 ingest（米其林大厨）
+
+请求头必须带 `X-Ingest-Secret: <INGEST_SECRET>`。不要用站长密码。
+
+```sh
+# 健康检查
+curl -s -H "X-Ingest-Secret: $INGEST_SECRET" \
+  https://averie-cook-api.averieh0202.workers.dev/api/ingest/health
+
+# 写入已做/想做（含私密食谱）
+curl -s -H "X-Ingest-Secret: $INGEST_SECRET" -H 'content-type: application/json' \
+  -d '{
+    "id": "2026-09-20-tomato-noodle",
+    "title": "番茄牛腩面",
+    "status": "want_cook",
+    "categories": ["chinese","beef"],
+    "recipe": { "summary": "想做", "steps": ["备菜"] }
+  }' \
+  https://averie-cook-api.averieh0202.workers.dev/api/ingest/dishes
+
+# 上传封面（multipart 字段名 file），得到 coverPath 后再写进菜
+curl -s -H "X-Ingest-Secret: $INGEST_SECRET" \
+  -F "file=@cover.jpg" \
+  https://averie-cook-api.averieh0202.workers.dev/api/ingest/upload
+```
+
+`status`：`cooked`（已做）或 `want_cook`（想做）。`deleted: true` 软删除。同一 `id` 再 POST 为更新。
+
+兼容路径：`POST /api/owner/dishes` 与 `/api/owner/upload` 也可使用同一 ingest 头。
+
+## 部署
+
+### 1) Cloudflare Worker + D1（必须）
+
+```sh
+cd api
+npx wrangler d1 create averie-cook
+```
+
+把 `database_id` 写进 `api/wrangler.toml`，然后：
+
+```sh
+npx wrangler d1 migrations apply averie-cook --remote
+npx wrangler kv namespace create MEDIA   # 把 id 替换 wrangler.toml 里的占位
+npx wrangler deploy
+```
+
+可选 R2：`npx wrangler r2 bucket create averie-cook-covers`，取消注释 `[[r2_buckets]]`。
+
+**不要**把 `OWNER_PASSWORD` 设成默认值 `averie-cook`。
+
+### 2) GitHub Pages（静态前端）
+
+1. Settings → Pages → **Source: GitHub Actions**
+2. 合并到 `main` 后等 `Deploy GitHub Pages`
+3. 打开 https://averieh0202-maker.github.io/averie-cook/
+
+## 站长登录
+
+本地密码：`averie-cook`。生产用 wrangler secret。登录后详情显示材料与步骤。访客用 `localStorage.visitor_key`。
+
+## API 摘要
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/health` | 健康检查 |
+| GET | `/api/dishes?status=` | 列表，永不返回 recipe |
+| GET | `/api/dishes/:id` | 匿名无 recipe；站长 cookie 才有 |
+| GET | `/api/media/:file` | 持久化封面 |
+| POST | `/api/dishes/:id/rate` | 1–5 分 |
+| POST | `/api/dishes/:id/want-eat` | 切换想吃 |
+| POST | `/api/ingest/dishes` | **INGEST_SECRET** 写入菜谱 |
+| POST | `/api/ingest/upload` | **INGEST_SECRET** 存图 |
+| GET | `/api/ingest/health` | ingest 密钥探活 |
+| POST | `/api/owner/login` | 站长密码 → httpOnly cookie |
+
+## 目录
+
+```
+web/     GitHub Pages 静态前端（无写入）
+api/     Worker + D1 + 可选 KV/R2
+data/    种子 JSON（导入 D1，不是运行时唯一存档）
+```
