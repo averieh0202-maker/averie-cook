@@ -6,12 +6,22 @@
     <meta name="theme-color" content="#f3eee4" />
     <meta name="description" content="Averie 做饭档案：做过的、想做的、想吃的。" />
     <title>Averie 做饭档案</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@600;700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- System / China-preinstalled fonts only. Google Fonts (fonts.googleapis.com)
+         often stalls or fails on mainland mobile and can block first paint. -->
+    <style>
+      html,
+      body,
+      #root {
+        min-height: 100%;
+        background: #f3eee4;
+        color: #2a241c;
+      }
+      body {
+        margin: 0;
+        font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei",
+          "Heiti SC", system-ui, sans-serif;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -4,23 +4,27 @@ import { copy } from "../lib/copy";
 import { formatCookedAt } from "../lib/format";
 import type { Dish } from "../lib/types";
 import { Cover } from "./Cover";
-import { RatingMark } from "./Rating";
+import { RatingMark, ScorePicker } from "./Rating";
 import { WantEatButton } from "./WantEatButton";
 
 export function DishCard({
   dish,
   onWantEat,
+  onRate,
   busy,
+  priority,
 }: {
   dish: Dish;
   onWantEat: (dish: Dish) => void;
+  onRate: (dish: Dish, score: number) => void;
   busy?: boolean;
+  priority?: boolean;
 }) {
   const to = `/dishes/${encodeURIComponent(dish.id)}`;
   return (
     <article className="overflow-hidden rounded-[1.7rem] bg-card shadow-card">
       <Link to={to} className="block">
-        <Cover dish={dish} />
+        <Cover dish={dish} priority={priority} />
       </Link>
       <div className="space-y-3.5 px-4 pb-4 pt-3.5">
         <div>
@@ -35,7 +39,18 @@ export function DishCard({
             <p className="mt-2 text-base text-mute">{copy.cookedMark}</p>
           ) : null}
         </div>
-        <RatingMark avg={dish.ratingAvg} count={dish.ratingCount} />
+        <div className="space-y-2.5">
+          <RatingMark avg={dish.ratingAvg} count={dish.ratingCount} />
+          <ScorePicker
+            value={dish.myScore}
+            disabled={busy}
+            compact
+            onChange={(score) => onRate(dish, score)}
+          />
+          <p className="text-sm text-mute">
+            {dish.myScore ? copy.rating.yours(dish.myScore) : copy.rating.pick}
+          </p>
+        </div>
         {dish.categories.length ? (
           <div className="flex flex-wrap gap-1.5">
             {dish.categories.map((cat) => (

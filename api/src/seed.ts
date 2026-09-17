@@ -135,13 +135,7 @@ export async function ensureSeed(env: Env): Promise<void> {
   await env.DB.batch(dishStmts);
 
   await putMedia(env, SEED_COVER_FILENAME, coverBytes(), "image/jpeg");
-
-  // Point the seed risotto at durable Worker media if it still referenced Pages static files.
-  await env.DB.prepare(
-    `UPDATE dishes SET cover_path = ?
-     WHERE id = ? AND (cover_path IS NULL OR cover_path LIKE 'uploads/%')`,
-  )
-    .bind(SEED_COVER_PATH, "2026-09-14-chicken-pumpkin-risotto")
-    .run();
+  // Seed risotto cover is also shipped on GitHub Pages (`web/public/covers/`).
+  // DTO routes that filename to Pages so CN phones do not fetch workers.dev for the photo.
   seeded = true;
 }

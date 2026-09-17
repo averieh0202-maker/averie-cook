@@ -7,6 +7,10 @@
 
 聊天记录不是档案。成菜总结、完整食谱、封面图都写在 **Cloudflare D1**（结构化）里；图片同时写入 D1 `media_objects`，并可镜像到 **KV / R2**。GitHub Pages 只托管静态前端，**不能**作为运行时写入存储。重新部署 Worker **不会**清空 D1。
 
+首页卡片可直接 **1–10 分评分**（不必进详情）。每人一份 `visitor_key`，展示的是所有访客的平均分。匿名响应仍然不含完整食谱。
+
+大陆手机：前端 **不加载 Google Fonts**（用系统黑体 / 宋体）；烩饭封面从 **GitHub Pages** 出（约 58KB、800px），不再默认走 `workers.dev` `/api/media`。API 超过约 8 秒会提示重试，封面失败则显示色块占位。
+
 ## 本地运行
 
 需要 Node.js 22.13+。
@@ -88,7 +92,9 @@ npm run dev
 curl -s http://127.0.0.1:8787/api/dishes?status=cooked
 ```
 
-应看到 3 道菜。封面 URL 形如 `/api/media/2026-09-14-chicken-pumpkin-risotto.jpg`。
+应看到 3 道菜。烩饭封面 URL 形如  
+`https://averieh0202-maker.github.io/averie-cook/covers/2026-09-14-chicken-pumpkin-risotto.jpg`  
+（Worker 上传的其它图仍是 `/api/media/<uuid>.jpg`）。
 
 ## 如何 ingest（米其林大厨）
 
@@ -141,7 +147,19 @@ npx wrangler deploy
 
 **不要**把 `OWNER_PASSWORD` 设成默认值 `averie-cook`。
 
-合并后请先部署 Worker（含 D1 迁移），再等 GitHub Pages：
+合并后：
+
+1. **GitHub Pages**（push `main` 后 Actions 自动部署）：首页评分、系统字体、压缩封面、骨架屏 / 超时重试。没有 Pages 上的 `covers/*.jpg` 时，前端会回退到 Worker 原图。
+2. **Worker**（本 PR **没有**新的 D1 迁移；评分 API 已存在）：
+
+```sh
+cd api
+npx wrangler deploy
+```
+
+Worker 部署会把种子封面的 JSON `coverUrl` 指到 Pages，并给 `/api/media` 更长的缓存头。可以先等 Pages 再 deploy Worker；反过来也可以（前端会把已知种子封面改写到 Pages）。
+
+若库还停留在旧的 1–5 分约束，仍需先跑过 `0003_ratings_ten_point.sql`：
 
 ```sh
 cd api
@@ -149,7 +167,7 @@ npx wrangler d1 migrations apply averie-cook --remote
 npx wrangler deploy
 ```
 
-`0003_ratings_ten_point.sql` 会把已有 1–5 评分乘 2，并改为 1–10 约束。不跑迁移的话，新的 6–10 分写入会失败。
+不跑该迁移的话，新的 6–10 分写入会失败。
 
 ### 2) GitHub Pages（静态前端）
 

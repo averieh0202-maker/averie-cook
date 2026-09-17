@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DishCard } from "../components/DishCard";
-import { listCategories, listDishes, toggleWantEat } from "../lib/api";
+import { ApiError, listCategories, listDishes, rateDish, toggleWantEat } from "../lib/api";
 import { categoryLabel, dishHasCategory } from "../lib/categories";
 import { copy } from "../lib/copy";
 import { dishMatchesQuery } from "../lib/format";
@@ -29,14 +29,15 @@ export function DishListPage({
       ]);
       setDishes(dishRes.dishes);
       setCatalog(catRes.categories);
-    } catch {
-      setError(copy.loadError);
+    } catch (err) {
+      setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
     }
   }, [status]);
 
   useEffect(() => {
     setCategoryId("all");
     setQuery("");
+    setDishes(null);
     void load();
   }, [load]);
 
@@ -72,8 +73,27 @@ export function DishListPage({
         if (status === "want_eat") return next.filter((d) => d.wantEatCount > 0);
         return next;
       });
-    } catch {
-      setError(copy.loadError);
+    } catch (err) {
+      setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function onRate(dish: Dish, score: number) {
+    setBusyId(dish.id);
+    try {
+      const res = await rateDish(dish.id, score);
+      setDishes((prev) => {
+        if (!prev) return prev;
+        return prev.map((d) =>
+          d.id === dish.id
+            ? { ...d, myScore: res.myScore, ratingAvg: res.ratingAvg, ratingCount: res.ratingCount }
+            : d,
+        );
+      });
+    } catch (err) {
+      setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
     } finally {
       setBusyId(null);
     }
@@ -92,13 +112,18 @@ export function DishListPage({
 
   if (!dishes) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4" aria-busy="true" aria-label="列表载入中">
         {[0, 1, 2].map((i) => (
           <div key={i} className="animate-pulse overflow-hidden rounded-[1.7rem] bg-card">
             <div className="aspect-square bg-chip" />
             <div className="space-y-2 p-4">
               <div className="h-5 w-40 rounded bg-chip" />
               <div className="h-4 w-24 rounded bg-chip" />
+              <div className="grid grid-cols-5 gap-2 pt-2">
+                {Array.from({ length: 10 }, (_, n) => (
+                  <div key={n} className="h-8 rounded-2xl bg-chip" />
+                ))}
+              </div>
             </div>
           </div>
         ))}
@@ -119,7 +144,14 @@ export function DishListPage({
         />
       </label>
 
-      {error ? <p className="text-center text-sm text-clay">{error}</p> : null}
+      {error ? (
+        <div className="rounded-2xl bg-chip px-3 py-2 text-center text-sm text-clay">
+          <p>{error}</p>
+          <button type="button" className="mt-1 font-medium" onClick={() => void load()}>
+            {copy.btn.retry}
+          </button>
+        </div>
+      ) : null}
 
       <div className="flex items-start gap-3">
         <nav
@@ -152,8 +184,15 @@ export function DishListPage({
           ) : visible.length === 0 ? (
             <p className="px-1 py-16 text-center leading-relaxed text-mute">{copy.noMatch}</p>
           ) : (
-            visible.map((dish) => (
-              <DishCard key={dish.id} dish={dish} busy={busyId === dish.id} onWantEat={onWantEat} />
+            visible.map((dish, index) => (
+              <DishCard
+                key={dish.id}
+                dish={dish}
+                busy={busyId === dish.id}
+                priority={index === 0}
+                onWantEat={onWantEat}
+                onRate={onRate}
+              />
             ))
           )}
         </div>

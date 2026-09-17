@@ -15,8 +15,16 @@ export default {
         line: "#e4d8c6",
       },
       fontFamily: {
-        sans: ['"Noto Sans SC"', "system-ui", "sans-serif"],
-        serif: ['"Noto Serif SC"', "serif"],
+        sans: [
+          '"PingFang SC"',
+          '"Hiragino Sans GB"',
+          '"Noto Sans SC"',
+          '"Microsoft YaHei"',
+          '"Heiti SC"',
+          "system-ui",
+          "sans-serif",
+        ],
+        serif: ['"Songti SC"', '"STSong"', '"Noto Serif CJK SC"', "SimSun", "serif"],
       },
       boxShadow: {
         card: "0 10px 30px -18px rgba(90, 50, 20, 0.35)",

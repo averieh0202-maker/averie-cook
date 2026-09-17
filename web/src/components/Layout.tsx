@@ -15,7 +15,7 @@ export function Layout() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
-      <header className="sticky top-0 z-20 border-b border-line/70 bg-paper/90 px-4 py-3.5 backdrop-blur-md">
+      <header className="sticky top-0 z-20 border-b border-line/70 bg-paper px-4 py-3.5">
         <div className="flex items-baseline justify-between gap-3">
           <NavLink to="/" className="font-serif text-[1.35rem] tracking-wide text-ink">
             {copy.brand}
@@ -35,7 +35,7 @@ export function Layout() {
         <Outlet />
       </main>
       {hideNav ? null : (
-        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line/80 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
+        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line/80 bg-card pb-[env(safe-area-inset-bottom)]">
           <div className="mx-auto grid max-w-lg grid-cols-3">
             {tabs.map((tab) => (
               <NavLink

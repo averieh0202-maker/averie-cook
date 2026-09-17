@@ -65,7 +65,7 @@ test("public DTO never contains recipe or private keys", () => {
     toPublicDish(row, catalog, "https://averieh0202-maker.github.io/averie-cook", "https://api.example"),
   );
   assert.equal(dish.ratingAvg, 8);
-  assert.equal(dish.coverUrl, "https://averieh0202-maker.github.io/averie-cook/uploads/2026-09-14-chicken-pumpkin-risotto.jpg");
+  assert.equal(dish.coverUrl, "https://averieh0202-maker.github.io/averie-cook/covers/2026-09-14-chicken-pumpkin-risotto.jpg");
   assert.deepEqual(
     dish.categories.map((c) => c.name),
     ["意式", "烩饭", "鸡肉"],
@@ -111,4 +111,23 @@ test("buildCoverUrl routes KV covers through the API origin", () => {
     "https://api.example/api/media/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg",
   );
   assert.equal(buildCoverUrl("../x", "https://a", "https://b"), null);
+});
+
+test("buildCoverUrl serves bundled seed covers from Pages, not workers.dev", () => {
+  assert.equal(
+    buildCoverUrl(
+      "covers/2026-09-14-chicken-pumpkin-risotto.jpg",
+      "https://averieh0202-maker.github.io/averie-cook",
+      "https://averie-cook-api.averieh0202.workers.dev",
+    ),
+    "https://averieh0202-maker.github.io/averie-cook/covers/2026-09-14-chicken-pumpkin-risotto.jpg",
+  );
+  assert.equal(
+    buildCoverUrl(
+      "uploads/2026-09-14-chicken-pumpkin-risotto.jpg",
+      "https://averieh0202-maker.github.io/averie-cook",
+      "https://api.example",
+    ),
+    "https://averieh0202-maker.github.io/averie-cook/covers/2026-09-14-chicken-pumpkin-risotto.jpg",
+  );
 });

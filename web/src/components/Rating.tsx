@@ -16,7 +16,7 @@ export function RatingMark({
       <span className={`font-serif leading-none tabular-nums text-clay ${numCls}`}>{formatScore10(avg)}</span>
       <span className="text-sm text-mute">{copy.rating.unit}</span>
       {avg != null && count != null ? (
-        <span className="text-sm text-mute">· {count} 人评</span>
+        <span className="text-sm text-mute">· {copy.rating.people(count)}</span>
       ) : avg == null ? (
         <span className="text-sm text-mute">{copy.rating.none}</span>
       ) : null}
@@ -27,10 +27,15 @@ export function RatingMark({
 export function ScorePicker({
   value,
   onChange,
+  disabled,
+  compact,
 }: {
   value: number | null;
   onChange?: (score: number) => void;
+  disabled?: boolean;
+  compact?: boolean;
 }) {
+  const pad = compact ? "py-2 text-xs" : "py-2.5 text-sm";
   return (
     <div className="grid grid-cols-5 gap-2" role={onChange ? "radiogroup" : undefined} aria-label="评分 1 到 10">
       {Array.from({ length: 10 }, (_, i) => i + 1).map((score) => {
@@ -40,7 +45,7 @@ export function ScorePicker({
           return (
             <span
               key={score}
-              className={`rounded-2xl py-2 text-center text-sm font-medium tabular-nums ${
+              className={`rounded-2xl ${pad} text-center font-medium tabular-nums ${
                 filled ? "bg-clay text-white" : "bg-chip text-mute"
               }`}
             >
@@ -54,8 +59,13 @@ export function ScorePicker({
             type="button"
             role="radio"
             aria-checked={active}
-            onClick={() => onChange(score)}
-            className={`rounded-2xl py-2.5 text-sm font-medium tabular-nums transition ${
+            disabled={disabled}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onChange(score);
+            }}
+            className={`rounded-2xl ${pad} font-medium tabular-nums transition disabled:opacity-60 ${
               active ? "bg-clay text-white shadow-sm" : "bg-chip text-ink/80 hover:bg-line"
             }`}
           >
