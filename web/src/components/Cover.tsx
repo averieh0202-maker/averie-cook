@@ -59,13 +59,11 @@ export function Cover({
   const primary = resolveCoverUrl(dish.coverUrl);
   const fallback = workerCoverFallback(dish.coverUrl);
   const [src, setSrc] = useState<string | null>(primary);
-  const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(!primary);
 
   useEffect(() => {
     const next = resolveCoverUrl(dish.coverUrl);
     setSrc(next);
-    setLoaded(false);
     setFailed(!next);
   }, [dish.coverUrl]);
 
@@ -77,7 +75,7 @@ export function Cover({
 
   return (
     <div className={`relative aspect-square overflow-hidden bg-chip ${className}`}>
-      {!loaded ? <Placeholder from={from} to={to} initial={initial} className="absolute inset-0" /> : null}
+      <Placeholder from={from} to={to} initial={initial} className="absolute inset-0" />
       <img
         src={src}
         alt={dish.title}
@@ -87,22 +85,16 @@ export function Cover({
         decoding="async"
         fetchPriority={priority ? "high" : "low"}
         sizes="(max-width: 32rem) 100vw, 32rem"
-        className={`h-full w-full object-cover object-center transition-opacity duration-300 ${
-          loaded ? "opacity-100" : "opacity-0"
-        }`}
-        onLoad={() => setLoaded(true)}
+        className="relative z-[1] h-full w-full object-cover object-center"
         onError={() => {
           if (fallback && src !== fallback) {
-            setLoaded(false);
             setSrc(fallback);
             return;
           }
           setFailed(true);
         }}
       />
-      {!loaded ? (
-        <span className="sr-only">{copy.coverLoading}</span>
-      ) : null}
+      <span className="sr-only">{copy.coverLoading}</span>
     </div>
   );
 }
