@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Cover } from "../components/Cover";
-import { Stars } from "../components/Stars";
+import { RatingMark, ScorePicker } from "../components/Rating";
 import { WantEatButton } from "../components/WantEatButton";
 import { getDish, rateDish, toggleWantEat } from "../lib/api";
 import { useAuth } from "../lib/auth";
+import { categoryLabel } from "../lib/categories";
 import { copy } from "../lib/copy";
+import { formatCookedAt } from "../lib/format";
 import type { Dish, Recipe } from "../lib/types";
 
 function asStringList(value: unknown): string[] {
@@ -19,16 +21,16 @@ function RecipeBlock({ recipe }: { recipe: Recipe }) {
   const steps = asStringList(recipe.steps);
   const improvements = asStringList(recipe.improvements);
   return (
-    <section className="space-y-5 rounded-3xl bg-card p-4 shadow-card">
+    <section className="space-y-5 rounded-[1.7rem] bg-card p-5 shadow-card">
       {recipe.summary ? (
         <div>
-          <h2 className="mb-1 text-sm font-medium text-mute">笔记</h2>
+          <h2 className="mb-1.5 text-sm font-medium tracking-wide text-mute">笔记</h2>
           <p className="leading-relaxed">{recipe.summary}</p>
         </div>
       ) : null}
       {ingredients.length ? (
         <div>
-          <h2 className="mb-2 text-sm font-medium text-mute">用料</h2>
+          <h2 className="mb-2 text-sm font-medium tracking-wide text-mute">用料</h2>
           <ul className="list-disc space-y-1 pl-5">
             {ingredients.map((item) => (
               <li key={item}>{item}</li>
@@ -38,19 +40,19 @@ function RecipeBlock({ recipe }: { recipe: Recipe }) {
       ) : null}
       {recipe.ingredients_v1 ? (
         <div>
-          <h2 className="mb-1 text-sm font-medium text-mute">用料 · 第一版</h2>
+          <h2 className="mb-1.5 text-sm font-medium tracking-wide text-mute">用料 · 第一版</h2>
           <p>{String(recipe.ingredients_v1)}</p>
         </div>
       ) : null}
       {recipe.ingredients_v2_next ? (
         <div>
-          <h2 className="mb-1 text-sm font-medium text-mute">用料 · 下次</h2>
+          <h2 className="mb-1.5 text-sm font-medium tracking-wide text-mute">用料 · 下次</h2>
           <p>{String(recipe.ingredients_v2_next)}</p>
         </div>
       ) : null}
       {steps.length ? (
         <div>
-          <h2 className="mb-2 text-sm font-medium text-mute">步骤</h2>
+          <h2 className="mb-2 text-sm font-medium tracking-wide text-mute">步骤</h2>
           <ol className="list-decimal space-y-2 pl-5">
             {steps.map((item) => (
               <li key={item}>{item}</li>
@@ -60,13 +62,13 @@ function RecipeBlock({ recipe }: { recipe: Recipe }) {
       ) : null}
       {recipe.tasting ? (
         <div>
-          <h2 className="mb-1 text-sm font-medium text-mute">品尝</h2>
+          <h2 className="mb-1.5 text-sm font-medium tracking-wide text-mute">品尝</h2>
           <p>{String(recipe.tasting)}</p>
         </div>
       ) : null}
       {improvements.length ? (
         <div>
-          <h2 className="mb-2 text-sm font-medium text-mute">下次改进</h2>
+          <h2 className="mb-2 text-sm font-medium tracking-wide text-mute">下次改进</h2>
           <ul className="list-disc space-y-1 pl-5">
             {improvements.map((item) => (
               <li key={item}>{item}</li>
@@ -82,16 +84,21 @@ export function DishPage() {
   const { id = "" } = useParams();
   const { owner } = useAuth();
   const [dish, setDish] = useState<Dish | null>(null);
+  const [asOwner, setAsOwner] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     setDish(null);
+    setAsOwner(false);
     setError(null);
     void getDish(id)
       .then((res) => {
-        if (!cancelled) setDish(res.dish);
+        if (!cancelled) {
+          setDish(res.dish);
+          setAsOwner(res.owner);
+        }
       })
       .catch(() => {
         if (!cancelled) setError(copy.loadError);
@@ -140,7 +147,7 @@ export function DishPage() {
 
   if (!dish) {
     return (
-      <div className="animate-pulse overflow-hidden rounded-3xl bg-card">
+      <div className="animate-pulse overflow-hidden rounded-[1.7rem] bg-card">
         <div className="aspect-square bg-chip" />
         <div className="space-y-2 p-4">
           <div className="h-6 w-48 rounded bg-chip" />
@@ -151,51 +158,53 @@ export function DishPage() {
   }
 
   const hasRecipe = Boolean(dish.recipe && Object.keys(dish.recipe).length);
+  const showAsOwner = asOwner || owner;
 
   return (
     <div className="space-y-4">
-      <Link to="/" className="text-sm text-mute">
+      <Link to="/" className="text-sm tracking-wide text-mute">
         ← {copy.btn.back}
       </Link>
-      <div className="overflow-hidden rounded-3xl bg-card shadow-card">
+      <div className="overflow-hidden rounded-[1.7rem] bg-card shadow-card">
         <Cover dish={dish} />
-        <div className="space-y-3 p-4">
-          <h1 className="font-serif text-2xl text-ink">{dish.title}</h1>
+        <div className="space-y-3.5 p-5">
+          <h1 className="font-serif text-[1.7rem] leading-snug tracking-wide text-ink">{dish.title}</h1>
+          {dish.cookedAt ? (
+            <p className="font-serif text-xl leading-none tracking-wide text-ink/75">{formatCookedAt(dish.cookedAt)}</p>
+          ) : null}
           <div className="flex flex-wrap gap-1.5">
-            <span className="rounded-full bg-olive/15 px-2.5 py-0.5 text-xs text-olive">
+            <span className="rounded-full bg-olive/15 px-2.5 py-0.5 text-xs tracking-wide text-olive">
               {dish.status === "cooked" ? copy.cookedMark : copy.nav.wantCook}
             </span>
             {dish.categories.map((cat) => (
-              <span key={cat.id} className="rounded-full bg-chip px-2.5 py-0.5 text-xs text-ink/80">
-                {cat.name}
+              <span key={cat.id} className="rounded-full bg-chip px-2.5 py-0.5 text-xs tracking-wide text-ink/80">
+                {categoryLabel(cat)}
               </span>
             ))}
           </div>
-          {dish.cookedAt ? <p className="text-sm text-mute">{dish.cookedAt}</p> : null}
-          <div className="flex items-center gap-2 text-sm text-mute">
-            {dish.ratingAvg != null ? (
-              <span>
-                {dish.ratingAvg} {copy.rating.unit} · {dish.ratingCount} 人评
-              </span>
-            ) : (
-              <span>{copy.rating.none}</span>
-            )}
-            {dish.wantEatCount > 0 ? <span>· {copy.wantEatCount(dish.wantEatCount)}</span> : null}
-          </div>
+          <RatingMark avg={dish.ratingAvg} count={dish.ratingCount} size="detail" />
+          {dish.wantEatCount > 0 ? <p className="text-sm text-mute">{copy.wantEatCount(dish.wantEatCount)}</p> : null}
         </div>
       </div>
 
-      <section className="space-y-3 rounded-3xl bg-card p-4 shadow-card">
-        <h2 className="text-sm font-medium text-mute">{copy.rating.title}</h2>
-        <Stars value={dish.myScore} onChange={(score) => void onRate(score)} />
-        <p className="text-sm text-mute">{dish.myScore ? copy.btn.rerate : copy.btn.rate}</p>
+      <section className="space-y-3 rounded-[1.7rem] bg-card p-5 shadow-card">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-medium tracking-wide text-mute">{copy.rating.title}</h2>
+          <span className="text-xs text-mute">{copy.rating.scale}</span>
+        </div>
+        <ScorePicker value={dish.myScore} onChange={(score) => void onRate(score)} />
+        <p className="text-sm text-mute">{dish.myScore ? copy.btn.rerate : copy.rating.pick}</p>
         <WantEatButton wanted={dish.wanted} count={dish.wantEatCount} busy={busy} onClick={() => void onWantEat()} />
       </section>
 
       {hasRecipe ? (
         <RecipeBlock recipe={dish.recipe as Recipe} />
+      ) : showAsOwner ? (
+        <section className="rounded-[1.7rem] border border-dashed border-line bg-card/60 p-5 text-center">
+          <p className="text-mute">{copy.ownerNoRecipe}</p>
+        </section>
       ) : (
-        <section className="rounded-3xl border border-dashed border-line bg-card/60 p-5 text-center">
+        <section className="rounded-[1.7rem] border border-dashed border-line bg-card/60 p-5 text-center">
           <p className="font-medium text-ink">{copy.lock.title}</p>
           <p className="mt-2 text-sm leading-relaxed text-mute">{copy.lock.sub}</p>
           <Link to="/login" className="mt-4 inline-block text-sm text-clay">

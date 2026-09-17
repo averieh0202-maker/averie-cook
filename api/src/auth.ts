@@ -45,7 +45,35 @@ export async function timingSafeEqual(a: string, b: string, hmacSecret: string):
   return diff === 0;
 }
 
-function cookieOpts(c: Context<{ Bindings: Env }>) {
+export function tokenFromAuthorization(header: string | undefined | null): string | null {
+  if (!header) return null;
+  const match = /^Bearer\s+(\S+)/i.exec(header.trim());
+  return match ? match[1] : null;
+}
+
+export async function verifyOwnerSession(
+  token: string | undefined | null,
+  secret: string | undefined | null,
+): Promise<boolean> {
+  if (!token || !secret) return false;
+  try {
+    const payload = await verify(token, secret, "HS256");
+    return payload.sub === "owner";
+  } catch {
+    return false;
+  }
+}
+
+type OwnerCookieOpts = {
+  httpOnly: true;
+  secure: boolean;
+  sameSite: "None" | "Lax";
+  path: "/";
+  maxAge: number;
+  partitioned?: boolean;
+};
+
+export function cookieOpts(c: Context<{ Bindings: Env }>): OwnerCookieOpts {
   const url = new URL(c.req.url);
   const xfProto = c.req.header("x-forwarded-proto") || "";
   const isHttps = url.protocol === "https:" || xfProto.split(",")[0].trim() === "https";
@@ -60,45 +88,55 @@ function cookieOpts(c: Context<{ Bindings: Env }>) {
   }
   // Cross-site GitHub Pages → Worker needs None; browsers require Secure with None.
   // Local HTTP (Vite proxy) uses Lax without Secure.
+  // Partitioned (CHIPS) helps Chrome's third-party cookie phaseout, but many
+  // browsers still drop the cookie — Bearer token on login is the reliable path.
   const sameSite = isHttps && crossSite ? "None" : "Lax";
   return {
     httpOnly: true,
     secure: isHttps,
-    sameSite: sameSite as "None" | "Lax",
+    sameSite,
     path: "/",
     maxAge: SESSION_TTL_SEC,
+    ...(isHttps && crossSite ? { partitioned: true } : {}),
   };
 }
 
-export async function issueOwnerCookie(c: Context<{ Bindings: Env }>): Promise<void> {
+export async function issueOwnerSession(c: Context<{ Bindings: Env }>): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-    const token = await sign(
+  const token = await sign(
     { sub: "owner", iat: now, exp: now + SESSION_TTL_SEC },
     c.env.OWNER_SESSION_SECRET,
     "HS256",
   );
   setCookie(c, COOKIE_NAME, token, cookieOpts(c));
+  return token;
+}
+
+/** @deprecated use issueOwnerSession */
+export async function issueOwnerCookie(c: Context<{ Bindings: Env }>): Promise<void> {
+  await issueOwnerSession(c);
 }
 
 export function clearOwnerCookie(c: Context<{ Bindings: Env }>): void {
+  const opts = cookieOpts(c);
   deleteCookie(c, COOKIE_NAME, {
     path: "/",
-    secure: cookieOpts(c).secure,
-    sameSite: cookieOpts(c).sameSite,
+    secure: opts.secure,
+    sameSite: opts.sameSite,
+    ...(opts.partitioned ? { partitioned: true } : {}),
   });
 }
 
+export function readOwnerToken(c: Context<{ Bindings: Env }>): string | null {
+  const fromCookie = getCookie(c, COOKIE_NAME)?.trim() || "";
+  if (fromCookie) return fromCookie;
+  return tokenFromAuthorization(c.req.header("Authorization"));
+}
+
 export async function isOwner(c: Context<{ Bindings: Env }>): Promise<boolean> {
-  const token = getCookie(c, COOKIE_NAME);
-  if (!token) return false;
   const secret = c.env.OWNER_SESSION_SECRET?.trim();
-  if (!secret) return false;
-  try {
-    const payload = await verify(token, secret, "HS256");
-    return payload.sub === "owner";
-  } catch {
-    return false;
-  }
+  if (await verifyOwnerSession(getCookie(c, COOKIE_NAME), secret)) return true;
+  return verifyOwnerSession(tokenFromAuthorization(c.req.header("Authorization")), secret);
 }
 
 export async function ingestAuthorized(c: Context<{ Bindings: Env }>): Promise<boolean> {

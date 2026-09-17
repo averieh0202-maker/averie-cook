@@ -15,25 +15,27 @@ export function Layout() {
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
-      <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line/70 bg-paper/90 px-4 py-3 backdrop-blur">
-        <NavLink to="/" className="font-serif text-lg text-ink">
-          {copy.brand}
-        </NavLink>
-        {owner ? (
-          <button type="button" className="text-sm text-mute" onClick={() => void logout()}>
-            {copy.btn.logout}
-          </button>
-        ) : (
-          <NavLink to="/login" className="text-sm text-clay">
-            {copy.btn.login}
+      <header className="sticky top-0 z-20 border-b border-line/70 bg-paper/90 px-4 py-3.5 backdrop-blur-md">
+        <div className="flex items-baseline justify-between gap-3">
+          <NavLink to="/" className="font-serif text-[1.35rem] tracking-wide text-ink">
+            {copy.brand}
           </NavLink>
-        )}
+          {owner ? (
+            <button type="button" className="text-sm tracking-wide text-mute" onClick={() => void logout()}>
+              {copy.btn.logout}
+            </button>
+          ) : (
+            <NavLink to="/login" className="text-sm tracking-wide text-clay">
+              {copy.btn.login}
+            </NavLink>
+          )}
+        </div>
       </header>
-      <main className="flex-1 px-4 pb-28 pt-4">
+      <main className="flex-1 px-3 pb-28 pt-5 sm:px-4">
         <Outlet />
       </main>
       {hideNav ? null : (
-        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line/80 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-line/80 bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md">
           <div className="mx-auto grid max-w-lg grid-cols-3">
             {tabs.map((tab) => (
               <NavLink
@@ -41,7 +43,7 @@ export function Layout() {
                 to={tab.to}
                 end={tab.end}
                 className={({ isActive }) =>
-                  `py-3 text-center text-sm ${isActive ? "font-semibold text-clay" : "text-mute"}`
+                  `py-3.5 text-center text-[13px] tracking-wide ${isActive ? "font-semibold text-clay" : "text-mute"}`
                 }
               >
                 {tab.label}

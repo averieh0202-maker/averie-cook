@@ -1,6 +1,6 @@
 # Averie 做饭档案站
 
-手机优先的做饭档案：三人页 **做过的 / 想做的 / 想吃的**。访客可评分、点想吃；**完整食谱仅站长登录后可见**。
+手机优先的做饭档案：三人页 **做过的 / 想做的 / 想吃的**。访客可评分、点想吃；**完整食谱仅站长登录后可见**。评分使用 **10 分制**（写入 D1 的也是 1–10；旧的 1–5 记录在迁移里 ×2）。
 
 **长期公开 URL：** https://averieh0202-maker.github.io/averie-cook/  
 **API：** `https://averie-cook-api.averieh0202.workers.dev`（部署后按你的 workers 子域替换）
@@ -141,6 +141,16 @@ npx wrangler deploy
 
 **不要**把 `OWNER_PASSWORD` 设成默认值 `averie-cook`。
 
+合并后请先部署 Worker（含 D1 迁移），再等 GitHub Pages：
+
+```sh
+cd api
+npx wrangler d1 migrations apply averie-cook --remote
+npx wrangler deploy
+```
+
+`0003_ratings_ten_point.sql` 会把已有 1–5 评分乘 2，并改为 1–10 约束。不跑迁移的话，新的 6–10 分写入会失败。
+
 ### 2) GitHub Pages（静态前端）
 
 1. Settings → Pages → **Source: GitHub Actions**
@@ -151,20 +161,22 @@ npx wrangler deploy
 
 本地密码：`averie-cook`。生产用 wrangler secret。登录后详情显示材料与步骤。访客用 `localStorage.visitor_key`。
 
+GitHub Pages（`averieh0202-maker.github.io`）和 Worker（`*.workers.dev`）是**不同站**。浏览器经常拦截跨站 `Set-Cookie`（即使 `SameSite=None; Secure; Partitioned`）。因此登录 JSON 会带回 JWT `token`，前端用 `Authorization: Bearer` 发送；cookie 仍用于本地 Vite 同源代理。`GET /api/dishes/:id` 只在站长会话有效时包含 `recipe`；匿名响应继续剥除食谱字段。
+
 ## API 摘要
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | GET | `/health` | 健康检查 |
 | GET | `/api/dishes?status=` | 列表，永不返回 recipe |
-| GET | `/api/dishes/:id` | 匿名无 recipe；站长 cookie 才有 |
+| GET | `/api/dishes/:id` | 匿名无 recipe；站长 cookie 或 Bearer 才有 |
 | GET | `/api/media/:file` | 持久化封面 |
-| POST | `/api/dishes/:id/rate` | 1–5 分 |
+| POST | `/api/dishes/:id/rate` | 1–10 分 |
 | POST | `/api/dishes/:id/want-eat` | 切换想吃 |
 | POST | `/api/ingest/dishes` | **INGEST_SECRET** 写入菜谱 |
 | POST | `/api/ingest/upload` | **INGEST_SECRET** 存图 |
 | GET | `/api/ingest/health` | ingest 密钥探活 |
-| POST | `/api/owner/login` | 站长密码 → httpOnly cookie |
+| POST | `/api/owner/login` | 站长密码 → httpOnly cookie **和** JSON `token`（跨站 Bearer） |
 
 ## 目录
 

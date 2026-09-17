@@ -17,6 +17,7 @@ body {
   background: #f3eee4;
   color: #2a241c;
   font-family: "Noto Sans SC", system-ui, sans-serif;
+  letter-spacing: 0.01em;
 }
 
 button,

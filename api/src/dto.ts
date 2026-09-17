@@ -207,3 +207,13 @@ export function pickPublicKeys(dish: PublicDish): PublicDish {
   }
   return out;
 }
+
+/** Visitor ratings are stored and displayed on a 1–10 scale. */
+export const RATING_MIN = 1;
+export const RATING_MAX = 10;
+
+export function parseRatingScore(value: unknown): number | null {
+  const score = Number(value);
+  if (!Number.isInteger(score) || score < RATING_MIN || score > RATING_MAX) return null;
+  return score;
+}
