@@ -6,7 +6,7 @@ compatibility_date = "2026-09-17"
 [[d1_databases]]
 binding = "DB"
 database_name = "averie-cook"
-database_id = "00000000-0000-0000-0000-000000000001"
+database_id = "b05980b7-5117-428f-9347-a2e5c649afa5"
 migrations_dir = "migrations"
 
 # Local wrangler simulates this namespace. Before remote deploy:
@@ -14,7 +14,7 @@ migrations_dir = "migrations"
 # then paste the real id here.
 [[kv_namespaces]]
 binding = "MEDIA"
-id = "00000000000000000000000000000001"
+id = "8d276e34e2944f18800074735ffaba8b"
 
 # Optional R2 mirror for covers:
 #   npx wrangler r2 bucket create averie-cook-covers
