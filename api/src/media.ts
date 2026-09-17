@@ -76,8 +76,10 @@ export function mediaResponse(body: ArrayBuffer, mime: string): Response {
   return new Response(body, {
     headers: {
       "Content-Type": mime,
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Cache-Control": "public, max-age=31536000, immutable, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
+      "Accept-Ranges": "bytes",
+      "Content-Length": String(body.byteLength),
     },
   });
 }

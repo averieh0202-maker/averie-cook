@@ -33,7 +33,10 @@ export const copy = {
     title: "这道菜怎么样",
     scale: "10 分制",
     pick: "点选 1–10 分",
+    people: (n: number) => `${n} 人评`,
+    yours: (n: number) => `你评了 ${n} 分`,
   },
+  coverLoading: "封面载入中",
   searchPlaceholder: "搜索菜名",
   allCategories: "全部",
   categoriesNav: "分类",
@@ -41,6 +44,7 @@ export const copy = {
   ownerNoRecipe: "这道菜还没有写入完整食谱。",
   wantEatCount: (n: number) => `${n} 人想吃`,
   loadError: "没加载出来，再试一次？",
+  slowError: "网络有点慢，再试一次？",
   loginHint: "只有站长能改档案、看完整食谱",
   cookedMark: "做过",
 } as const;

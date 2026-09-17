@@ -88,6 +88,9 @@ const PUBLIC_DISH_KEYS: Array<keyof PublicDish> = [
   "updatedAt",
 ];
 
+/** Seed / bundled photos that also live on GitHub Pages (better reach from CN than workers.dev). */
+export const PAGES_COVER_FILES = new Set(["2026-09-14-chicken-pumpkin-risotto.jpg"]);
+
 export function buildCoverUrl(
   coverPath: string | null | undefined,
   assetBaseUrl: string,
@@ -96,10 +99,14 @@ export function buildCoverUrl(
   if (!coverPath) return null;
   const safe = sanitizeCoverPath(coverPath);
   if (!safe) return null;
-  if (safe.startsWith("covers/")) {
-    return `${apiOrigin.replace(/\/$/, "")}/api/media/${encodeURIComponent(safe.slice("covers/".length))}`;
-  }
   const base = assetBaseUrl.replace(/\/$/, "");
+  const filename = safe.split("/")[1] || "";
+  if (filename && PAGES_COVER_FILES.has(filename)) {
+    return `${base}/covers/${encodeURIComponent(filename)}`;
+  }
+  if (safe.startsWith("covers/")) {
+    return `${apiOrigin.replace(/\/$/, "")}/api/media/${encodeURIComponent(filename)}`;
+  }
   return `${base}/${safe}`;
 }
 

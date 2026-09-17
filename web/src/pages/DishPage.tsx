@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Cover } from "../components/Cover";
 import { RatingMark, ScorePicker } from "../components/Rating";
 import { WantEatButton } from "../components/WantEatButton";
-import { getDish, rateDish, toggleWantEat } from "../lib/api";
+import { ApiError, getDish, rateDish, toggleWantEat } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { categoryLabel } from "../lib/categories";
 import { copy } from "../lib/copy";
@@ -80,6 +80,10 @@ function RecipeBlock({ recipe }: { recipe: Recipe }) {
   );
 }
 
+function failMessage(err: unknown): string {
+  return err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError;
+}
+
 export function DishPage() {
   const { id = "" } = useParams();
   const { owner } = useAuth();
@@ -88,25 +92,22 @@ export function DishPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const res = await getDish(id);
+      setDish(res.dish);
+      setAsOwner(res.owner);
+    } catch (err) {
+      setError(failMessage(err));
+    }
+  }, [id]);
+
   useEffect(() => {
-    let cancelled = false;
     setDish(null);
     setAsOwner(false);
-    setError(null);
-    void getDish(id)
-      .then((res) => {
-        if (!cancelled) {
-          setDish(res.dish);
-          setAsOwner(res.owner);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError(copy.loadError);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id, owner]);
+    void load();
+  }, [id, owner, load]);
 
   async function onRate(score: number) {
     if (!dish) return;
@@ -114,8 +115,8 @@ export function DishPage() {
     try {
       const res = await rateDish(dish.id, score);
       setDish({ ...dish, myScore: res.myScore, ratingAvg: res.ratingAvg, ratingCount: res.ratingCount });
-    } catch {
-      setError(copy.loadError);
+    } catch (err) {
+      setError(failMessage(err));
     } finally {
       setBusy(false);
     }
@@ -127,8 +128,8 @@ export function DishPage() {
     try {
       const res = await toggleWantEat(dish.id);
       setDish({ ...dish, wanted: res.wanted, wantEatCount: res.wantEatCount });
-    } catch {
-      setError(copy.loadError);
+    } catch (err) {
+      setError(failMessage(err));
     } finally {
       setBusy(false);
     }
@@ -138,7 +139,10 @@ export function DishPage() {
     return (
       <div className="py-16 text-center text-mute">
         <p>{error}</p>
-        <Link to="/" className="mt-3 inline-block text-clay">
+        <button type="button" className="mt-3 text-clay" onClick={() => void load()}>
+          {copy.btn.retry}
+        </button>
+        <Link to="/" className="mt-3 block text-sm text-mute">
           {copy.btn.back}
         </Link>
       </div>
@@ -166,7 +170,7 @@ export function DishPage() {
         ← {copy.btn.back}
       </Link>
       <div className="overflow-hidden rounded-[1.7rem] bg-card shadow-card">
-        <Cover dish={dish} />
+        <Cover dish={dish} priority />
         <div className="space-y-3.5 p-5">
           <h1 className="font-serif text-[1.7rem] leading-snug tracking-wide text-ink">{dish.title}</h1>
           {dish.cookedAt ? (
@@ -187,13 +191,22 @@ export function DishPage() {
         </div>
       </div>
 
+      {error ? (
+        <div className="rounded-2xl bg-chip px-3 py-2 text-center text-sm text-clay">
+          <p>{error}</p>
+          <button type="button" className="mt-1 font-medium" onClick={() => void load()}>
+            {copy.btn.retry}
+          </button>
+        </div>
+      ) : null}
+
       <section className="space-y-3 rounded-[1.7rem] bg-card p-5 shadow-card">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-medium tracking-wide text-mute">{copy.rating.title}</h2>
           <span className="text-xs text-mute">{copy.rating.scale}</span>
         </div>
-        <ScorePicker value={dish.myScore} onChange={(score) => void onRate(score)} />
-        <p className="text-sm text-mute">{dish.myScore ? copy.btn.rerate : copy.rating.pick}</p>
+        <ScorePicker value={dish.myScore} disabled={busy} onChange={(score) => void onRate(score)} />
+        <p className="text-sm text-mute">{dish.myScore ? copy.rating.yours(dish.myScore) : copy.rating.pick}</p>
         <WantEatButton wanted={dish.wanted} count={dish.wantEatCount} busy={busy} onClick={() => void onWantEat()} />
       </section>
 

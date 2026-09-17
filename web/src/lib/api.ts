@@ -37,6 +37,25 @@ export function clearOwnerToken(): void {
   }
 }
 
+const FETCH_TIMEOUT_MS = 8000;
+
+function timeoutSignal(parent: AbortSignal | undefined, ms: number): { signal: AbortSignal; cancel: () => void } {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  const onParentAbort = () => ctrl.abort();
+  if (parent) {
+    if (parent.aborted) ctrl.abort();
+    else parent.addEventListener("abort", onParentAbort, { once: true });
+  }
+  return {
+    signal: ctrl.signal,
+    cancel: () => {
+      clearTimeout(timer);
+      parent?.removeEventListener("abort", onParentAbort);
+    },
+  };
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("X-Visitor-Key", getVisitorKey());
@@ -47,11 +66,26 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-    credentials: "include",
-  });
+  const { signal, cancel } = timeoutSignal(init.signal ?? undefined, FETCH_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      credentials: "include",
+      signal,
+    });
+  } catch (err) {
+    cancel();
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("slow", 0);
+    }
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new ApiError("slow", 0);
+    }
+    throw err;
+  }
+  cancel();
   const text = await res.text();
   let data: unknown = null;
   try {

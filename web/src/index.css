@@ -16,7 +16,8 @@ body {
   margin: 0;
   background: #f3eee4;
   color: #2a241c;
-  font-family: "Noto Sans SC", system-ui, sans-serif;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", "Heiti SC",
+    system-ui, sans-serif;
   letter-spacing: 0.01em;
 }
 
