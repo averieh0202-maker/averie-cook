@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DishCard } from "../components/DishCard";
+import { RatingAccountHint } from "../components/Rating";
 import { ApiError, listCategories, listDishes, rateDish, toggleWantEat } from "../lib/api";
 import { categoryLabel, dishHasCategory } from "../lib/categories";
 import { copy } from "../lib/copy";
 import { dishMatchesQuery } from "../lib/format";
+import { useAuth } from "../lib/auth";
 import type { Category, Dish } from "../lib/types";
 
 export function DishListPage({
@@ -13,6 +15,7 @@ export function DishListPage({
   status: "cooked" | "want_cook" | "want_eat";
   empty: string;
 }) {
+  const { identityEpoch } = useAuth();
   const [dishes, setDishes] = useState<Dish[] | null>(null);
   const [catalog, setCatalog] = useState<Category[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export function DishListPage({
     } catch (err) {
       setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
     }
-  }, [status]);
+  }, [status, identityEpoch]);
 
   useEffect(() => {
     setCategoryId("all");
@@ -133,6 +136,7 @@ export function DishListPage({
 
   return (
     <div className="space-y-4">
+      <RatingAccountHint />
       <label className="block">
         <span className="sr-only">{copy.searchPlaceholder}</span>
         <input

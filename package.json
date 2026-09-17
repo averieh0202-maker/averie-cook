@@ -12,7 +12,7 @@
     "dev:api": "npm run dev -w api",
     "build": "npm run build -w web",
     "preview": "npm run preview -w web",
-    "test": "npm run test -w api",
+    "test": "npm run test -w api && npx tsx --test web/src/lib/visitor.test.ts",
     "typecheck": "npm run typecheck -w web && npm run typecheck -w api",
     "seed:local": "npm run seed:local -w api"
   },

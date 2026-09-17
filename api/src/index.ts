@@ -6,6 +6,12 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { cors } from "hono/cors";
 import {
+  issueRaterToken,
+  loginOrRegisterRater,
+  RATER_LOGIN_MAX_ATTEMPTS,
+  resolveRater,
+} from "./account";
+import {
   checkLoginRateLimit,
   clientIp,
   DISH_ID_RE,
@@ -15,6 +21,7 @@ import {
   clearOwnerCookie,
   ownerOrIngest,
   passwordConfigured,
+  readRaterToken,
   readVisitorKey,
   timingSafeEqual,
 } from "./auth";
@@ -76,7 +83,7 @@ app.use(
       return ALLOWED_ORIGINS.has(origin) ? origin : "";
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "X-Visitor-Key", "X-Ingest-Secret"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Visitor-Key", "X-Rater-Token", "X-Ingest-Secret"],
     credentials: true,
     maxAge: 86400,
   }),
@@ -327,6 +334,50 @@ app.post("/api/owner/login", async (c) => {
 app.post("/api/owner/logout", async (c) => {
   clearOwnerCookie(c);
   return c.json({ ok: true, owner: false });
+});
+
+app.get("/api/account/me", async (c) => {
+  const rater = await resolveRater(
+    c.env.DB,
+    c.env.OWNER_SESSION_SECRET,
+    readRaterToken(c),
+    readVisitorKey(c),
+  );
+  if (!rater) return c.json({ rater: false });
+  return c.json({ rater: true, displayName: rater.displayName, visitorKey: rater.visitorKey });
+});
+
+app.post("/api/account/login", async (c) => {
+  const secret = c.env.OWNER_SESSION_SECRET?.trim() || "";
+  if (!secret || secret.length < 16) return c.json({ error: "账号服务未配置" }, 503);
+
+  const limit = await checkLoginRateLimit(c.env.DB, clientIp(c), "rater-login", RATER_LOGIN_MAX_ATTEMPTS);
+  if (!limit.ok) {
+    return c.json({ error: "尝试过多，请稍后再试", retrySec: limit.retrySec }, 429);
+  }
+
+  let body: { displayName?: unknown; pin?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "请求体必须是 JSON" }, 400);
+  }
+
+  const result = await loginOrRegisterRater(c.env.DB, secret, {
+    displayName: body.displayName,
+    pin: body.pin,
+    guestVisitorKey: readVisitorKey(c),
+  });
+  if (!result.ok) return c.json({ error: result.error }, result.status);
+
+  const token = await issueRaterToken(secret, result.visitorKey, result.displayName);
+  return c.json({
+    ok: true,
+    rater: true,
+    displayName: result.displayName,
+    visitorKey: result.visitorKey,
+    token,
+  });
 });
 
 app.get("/api/ingest/health", async (c) => {

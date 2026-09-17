@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+import { useAuth } from "../lib/auth";
 import { copy } from "../lib/copy";
 import { formatScore10 } from "../lib/format";
 
@@ -21,6 +23,23 @@ export function RatingMark({
         <span className="text-sm text-mute">{copy.rating.none}</span>
       ) : null}
     </div>
+  );
+}
+
+export function RatingAccountHint() {
+  const { rater, ready } = useAuth();
+  if (!ready) return null;
+  if (rater) {
+    return <p className="text-xs text-mute">{copy.account.ratingAs(rater.displayName)}</p>;
+  }
+  return (
+    <p className="text-xs text-mute">
+      <Link to="/login" className="text-clay">
+        {copy.btn.login}
+      </Link>
+      {" · "}
+      {copy.account.nudge}
+    </p>
   );
 }
 
