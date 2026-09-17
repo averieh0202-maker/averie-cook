@@ -1,4 +1,7 @@
+import risottoCover from "./assets/2026-09-14-chicken-pumpkin-risotto.jpg";
 import type { Category } from "./dto";
+import type { Env } from "./env";
+import { putMedia, SEED_COVER_FILENAME, SEED_COVER_PATH } from "./media";
 
 export const SEED_CATEGORIES: Category[] = [
   { id: "italian", name: "意式", sort: 1 },
@@ -30,7 +33,7 @@ export const SEED_DISHES: SeedDish[] = [
     status: "cooked",
     categories: ["italian", "risotto", "chicken"],
     cookedAt: "2026-09-14",
-    coverPath: "uploads/2026-09-14-chicken-pumpkin-risotto.jpg",
+    coverPath: SEED_COVER_PATH,
     recipe: {
       summary: "Arborio 鸡肉南瓜烩饭第一版；浓稠与南瓜软糯有改进空间。",
       ingredients: [
@@ -88,57 +91,57 @@ export const SEED_DISHES: SeedDish[] = [
   },
 ];
 
-export async function ensureSeed(db: D1Database): Promise<void> {
-  const existing = await db.prepare("SELECT COUNT(*) AS c FROM dishes").first<{ c: number }>();
-  if (existing && Number(existing.c) > 0) {
-    const cats = await db.prepare("SELECT COUNT(*) AS c FROM categories").first<{ c: number }>();
-    if (cats && Number(cats.c) > 0) return;
-  }
+function coverBytes(): Uint8Array {
+  return risottoCover instanceof Uint8Array ? risottoCover : new Uint8Array(risottoCover);
+}
 
-  const stmts: D1PreparedStatement[] = [];
-  for (const cat of SEED_CATEGORIES) {
-    stmts.push(
-      db
-        .prepare(
-          "INSERT INTO categories (id, name, sort) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, sort=excluded.sort",
-        )
-        .bind(cat.id, cat.name, cat.sort),
-    );
-  }
+let seeded = false;
+
+/**
+ * Idempotent. Never overwrites existing dish rows (recipes/ratings stay after redeploy).
+ * Empty D1 gets the 3 seed dishes + risotto cover blob.
+ */
+export async function ensureSeed(env: Env): Promise<void> {
+  if (seeded) return;
+  const catStmts = SEED_CATEGORIES.map((cat) =>
+    env.DB.prepare(
+      "INSERT INTO categories (id, name, sort) VALUES (?, ?, ?) ON CONFLICT(id) DO NOTHING",
+    ).bind(cat.id, cat.name, cat.sort),
+  );
+  await env.DB.batch(catStmts);
 
   const now = new Date().toISOString();
-  for (const dish of SEED_DISHES) {
-    stmts.push(
-      db
-        .prepare(
-          `INSERT INTO dishes (
-            id, title, status, categories, cover_path, cooked_at, source_url, source_type,
-            recipe, published, deleted_at, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, ?)
-          ON CONFLICT(id) DO UPDATE SET
-            title=excluded.title,
-            status=excluded.status,
-            categories=excluded.categories,
-            cover_path=COALESCE(dishes.cover_path, excluded.cover_path),
-            cooked_at=excluded.cooked_at,
-            recipe=excluded.recipe,
-            updated_at=excluded.updated_at`,
-        )
-        .bind(
-          dish.id,
-          dish.title,
-          dish.status,
-          JSON.stringify(dish.categories),
-          dish.coverPath ?? null,
-          dish.cookedAt ?? null,
-          dish.sourceUrl ?? null,
-          dish.sourceType ?? null,
-          JSON.stringify(dish.recipe),
-          now,
-          now,
-        ),
-    );
-  }
+  const dishStmts = SEED_DISHES.map((dish) =>
+    env.DB.prepare(
+      `INSERT INTO dishes (
+        id, title, status, categories, cover_path, cooked_at, source_url, source_type,
+        recipe, published, deleted_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, ?)
+      ON CONFLICT(id) DO NOTHING`,
+    ).bind(
+      dish.id,
+      dish.title,
+      dish.status,
+      JSON.stringify(dish.categories),
+      dish.coverPath ?? null,
+      dish.cookedAt ?? null,
+      dish.sourceUrl ?? null,
+      dish.sourceType ?? null,
+      JSON.stringify(dish.recipe),
+      now,
+      now,
+    ),
+  );
+  await env.DB.batch(dishStmts);
 
-  await db.batch(stmts);
+  await putMedia(env, SEED_COVER_FILENAME, coverBytes(), "image/jpeg");
+
+  // Point the seed risotto at durable Worker media if it still referenced Pages static files.
+  await env.DB.prepare(
+    `UPDATE dishes SET cover_path = ?
+     WHERE id = ? AND (cover_path IS NULL OR cover_path LIKE 'uploads/%')`,
+  )
+    .bind(SEED_COVER_PATH, "2026-09-14-chicken-pumpkin-risotto")
+    .run();
+  seeded = true;
 }

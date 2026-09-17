@@ -3,11 +3,13 @@
  * Public dish JSON never includes recipe / notes / calories.
  */
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { cors } from "hono/cors";
 import {
   checkLoginRateLimit,
   clientIp,
   DISH_ID_RE,
+  ingestAuthorized,
   isOwner,
   issueOwnerCookie,
   clearOwnerCookie,
@@ -26,6 +28,14 @@ import {
   toPublicDish,
 } from "./dto";
 import type { Env } from "./env";
+import {
+  getMedia,
+  isMediaFilename,
+  MAX_UPLOAD_BYTES,
+  mediaResponse,
+  putMedia,
+  sniffImage,
+} from "./media";
 import { ensureSeed } from "./seed";
 
 const ALLOWED_ORIGINS = new Set([
@@ -36,7 +46,6 @@ const ALLOWED_ORIGINS = new Set([
   "http://127.0.0.1:4173",
 ]);
 
-const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
 const PRIVATE_CACHE = "private, no-store";
 
 const DISH_SELECT = `
@@ -52,7 +61,9 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.use("*", async (c, next) => {
   await next();
-  c.header("Cache-Control", PRIVATE_CACHE);
+  if (!c.req.path.startsWith("/api/media/")) {
+    c.header("Cache-Control", PRIVATE_CACHE);
+  }
   c.header("X-Content-Type-Options", "nosniff");
 });
 
@@ -73,7 +84,7 @@ app.use(
 app.use("*", async (c, next) => {
   if (c.req.path === "/health") return next();
   try {
-    await ensureSeed(c.env.DB);
+    await ensureSeed(c.env);
   } catch (err) {
     console.error("seed failed", err);
   }
@@ -315,11 +326,28 @@ app.post("/api/owner/logout", async (c) => {
   return c.json({ ok: true, owner: false });
 });
 
+app.get("/api/ingest/health", async (c) => {
+  if (!(await ingestAuthorized(c))) {
+    return c.json({ error: "需要有效的 X-Ingest-Secret" }, 401);
+  }
+  return c.json({ ok: true, ingest: true });
+});
+
+app.post("/api/ingest/dishes", async (c) => {
+  if (!(await ingestAuthorized(c))) {
+    return c.json({ error: "需要有效的 X-Ingest-Secret" }, 401);
+  }
+  return upsertDish(c);
+});
+
 app.post("/api/owner/dishes", async (c) => {
   if (!(await ownerOrIngest(c))) {
     return c.json({ error: "需要站长登录或 INGEST_SECRET" }, 401);
   }
+  return upsertDish(c);
+});
 
+async function upsertDish(c: Context<{ Bindings: Env }>): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = (await c.req.json()) as Record<string, unknown>;
@@ -409,21 +437,23 @@ app.post("/api/owner/dishes", async (c) => {
   }
 
   return c.json({ ok: true, id });
+}
+
+app.post("/api/ingest/upload", async (c) => {
+  if (!(await ingestAuthorized(c))) {
+    return c.json({ error: "需要有效的 X-Ingest-Secret" }, 401);
+  }
+  return uploadCover(c);
 });
 
 app.post("/api/owner/upload", async (c) => {
   if (!(await ownerOrIngest(c))) {
     return c.json({ error: "需要站长登录或 INGEST_SECRET" }, 401);
   }
-  if (!c.env.MEDIA) {
-    return c.json(
-      {
-        error: "未绑定 MEDIA KV，无法存图。请把封面放到前端 public/uploads 并用 coverPath 引用。",
-      },
-      501,
-    );
-  }
+  return uploadCover(c);
+});
 
+async function uploadCover(c: Context<{ Bindings: Env }>): Promise<Response> {
   let body: Record<string, unknown>;
   try {
     body = await c.req.parseBody({ all: true });
@@ -439,49 +469,25 @@ app.post("/api/owner/upload", async (c) => {
   if (!kind) return c.json({ error: "仅支持 JPEG / PNG / WebP" }, 400);
 
   const filename = `${crypto.randomUUID()}.${kind.ext}`;
-  await c.env.MEDIA.put(`media:${filename}`, buf, {
-    metadata: { mime: kind.mime },
-  });
+  await putMedia(c.env, filename, buf, kind.mime);
   const coverPath = `covers/${filename}`;
   return c.json({
     ok: true,
     coverPath,
     coverUrl: `${apiOrigin(c)}/api/media/${encodeURIComponent(filename)}`,
   });
-});
+}
 
 app.get("/api/media/:filename", async (c) => {
   const filename = c.req.param("filename");
-  if (!/^[0-9a-f-]{36}\.(jpg|png|webp)$/i.test(filename)) {
+  if (!isMediaFilename(filename)) {
     return c.json({ error: "无效文件名" }, 400);
   }
-  if (!c.env.MEDIA) return c.json({ error: "未配置媒体存储" }, 501);
-  const rec = await c.env.MEDIA.getWithMetadata< { mime?: string }>(`media:${filename}`, "arrayBuffer");
-  if (!rec.value) return c.json({ error: "找不到图片" }, 404);
-  const mime = rec.metadata?.mime || "application/octet-stream";
-  return new Response(rec.value, {
-    headers: {
-      "Content-Type": mime,
-      "Cache-Control": "public, max-age=31536000, immutable",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
+  const rec = await getMedia(c.env, filename);
+  if (!rec) return c.json({ error: "找不到图片" }, 404);
+  return mediaResponse(rec.body, rec.mime);
 });
 
 app.all("*", (c) => c.json({ error: "Not found" }, 404));
-
-function sniffImage(buf: Uint8Array): { ext: "jpg" | "png" | "webp"; mime: string } | null {
-  if (buf.length < 12) return null;
-  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
-    return { ext: "jpg", mime: "image/jpeg" };
-  }
-  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
-    return { ext: "png", mime: "image/png" };
-  }
-  const riff = String.fromCharCode(buf[0], buf[1], buf[2], buf[3]);
-  const webp = String.fromCharCode(buf[8], buf[9], buf[10], buf[11]);
-  if (riff === "RIFF" && webp === "WEBP") return { ext: "webp", mime: "image/webp" };
-  return null;
-}
 
 export default app;

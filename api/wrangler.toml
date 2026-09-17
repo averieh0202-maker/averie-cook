@@ -9,12 +9,23 @@ database_name = "averie-cook"
 database_id = "00000000-0000-0000-0000-000000000001"
 migrations_dir = "migrations"
 
-# Optional: store owner-uploaded covers. Create with:
+# Local wrangler simulates this namespace. Before remote deploy:
 #   npx wrangler kv namespace create MEDIA
-# then uncomment and paste the id. Local `wrangler dev` still works without it.
-# [[kv_namespaces]]
-# binding = "MEDIA"
-# id = "00000000000000000000000000000001"
+# then paste the real id here.
+[[kv_namespaces]]
+binding = "MEDIA"
+id = "00000000000000000000000000000001"
+
+# Optional R2 mirror for covers:
+#   npx wrangler r2 bucket create averie-cook-covers
+# [[r2_buckets]]
+# binding = "COVERS"
+# bucket_name = "averie-cook-covers"
+
+[[rules]]
+type = "Data"
+globs = ["**/*.jpg"]
+fallthrough = true
 
 [vars]
 ASSET_BASE_URL = "https://averieh0202-maker.github.io/averie-cook"
