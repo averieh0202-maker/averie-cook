@@ -38,6 +38,8 @@ import {
   toPublicDish,
 } from "./dto";
 import type { Env } from "./env";
+import { CoverFilterError } from "./foodFilter";
+import { filterCoverBytes } from "./imageCodec";
 import {
   getMedia,
   isMediaFilename,
@@ -518,8 +520,17 @@ async function uploadCover(c: Context<{ Bindings: Env }>): Promise<Response> {
   const kind = sniffImage(buf);
   if (!kind) return c.json({ error: "仅支持 JPEG / PNG / WebP" }, 400);
 
-  const filename = `${crypto.randomUUID()}.${kind.ext}`;
-  await putMedia(c.env, filename, buf, kind.mime);
+  let filtered: Uint8Array;
+  try {
+    filtered = await filterCoverBytes(buf, kind);
+  } catch (err) {
+    console.error("cover filter failed", err);
+    const msg = err instanceof CoverFilterError ? err.message : "封面滤镜处理失败";
+    return c.json({ error: msg }, 400);
+  }
+
+  const filename = `${crypto.randomUUID()}.jpg`;
+  await putMedia(c.env, filename, filtered, "image/jpeg");
   const coverPath = `covers/${filename}`;
   return c.json({
     ok: true,
