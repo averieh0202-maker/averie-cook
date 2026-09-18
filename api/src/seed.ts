@@ -1,4 +1,6 @@
-import risottoCover from "./assets/2026-09-14-chicken-pumpkin-risotto.jpg";
+// `.bin` so Pages Functions can import the JPEG as a binary module (Workers still
+// accept `.jpg` via wrangler [[rules]]; Functions only auto-load `.bin`).
+import risottoCover from "./assets/2026-09-14-chicken-pumpkin-risotto.jpg.bin";
 import type { Category } from "./dto";
 import type { Env } from "./env";
 import { putMedia, SEED_COVER_FILENAME, SEED_COVER_PATH } from "./media";

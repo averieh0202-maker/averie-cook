@@ -1,0 +1,4 @@
+# Cloudflare Pages SPA: rewrite unknown paths to the React app.
+# wrangler pages dev may warn about a loop and ignore this rule; it still
+# serves 404.html (copied from index.html) so client routes work locally.
+/*    /index.html   200

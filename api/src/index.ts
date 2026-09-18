@@ -1,5 +1,7 @@
 /**
- * Averie Cook API — Cloudflare Worker + D1.
+ * Averie Cook API — Hono app shared by:
+ *   - Cloudflare Pages Functions (canonical, same-origin /api on pages.dev)
+ *   - Legacy Worker at averie-cook-api.*.workers.dev
  * Public dish JSON never includes recipe / notes / calories.
  */
 import { Hono } from "hono";
@@ -44,15 +46,8 @@ import {
   putMedia,
   sniffImage,
 } from "./media";
+import { isAllowedOrigin, resolveAssetBase } from "./cors";
 import { ensureSeed } from "./seed";
-
-const ALLOWED_ORIGINS = new Set([
-  "https://averieh0202-maker.github.io",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:4173",
-  "http://127.0.0.1:4173",
-]);
 
 const PRIVATE_CACHE = "private, no-store";
 
@@ -78,9 +73,9 @@ app.use("*", async (c, next) => {
 app.use(
   "*",
   cors({
-    origin: (origin) => {
+    origin: (origin, c) => {
       if (!origin) return "";
-      return ALLOWED_ORIGINS.has(origin) ? origin : "";
+      return isAllowedOrigin(origin, c.req.url) ? origin : "";
     },
     allowMethods: ["GET", "POST", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "X-Visitor-Key", "X-Rater-Token", "X-Ingest-Secret"],
@@ -103,8 +98,8 @@ function apiOrigin(c: { req: { url: string } }): string {
   return new URL(c.req.url).origin;
 }
 
-function assetBase(env: Env): string {
-  return (env.ASSET_BASE_URL || "https://averieh0202-maker.github.io/averie-cook").replace(/\/$/, "");
+function assetBase(env: Env, requestUrl: string): string {
+  return resolveAssetBase(env.ASSET_BASE_URL, requestUrl);
 }
 
 async function loadCatalog(db: D1Database): Promise<Map<string, Category>> {
@@ -187,7 +182,7 @@ app.get("/api/dishes", async (c) => {
 
   const { results } = await c.env.DB.prepare(sql).bind(...binds).all<DishRow>();
   const dishes = (results || []).map((row) =>
-    pickPublicKeys(toPublicDish(row, catalog, assetBase(c.env), apiOrigin(c))),
+    pickPublicKeys(toPublicDish(row, catalog, assetBase(c.env, c.req.url), apiOrigin(c))),
   );
   assertPublicPayload({ dishes });
   return c.json({ dishes });
@@ -206,10 +201,10 @@ app.get("/api/dishes/:id", async (c) => {
 
   const catalog = await loadCatalog(c.env.DB);
   if (owner) {
-    const dish = toOwnerDish(row, catalog, assetBase(c.env), apiOrigin(c));
+    const dish = toOwnerDish(row, catalog, assetBase(c.env, c.req.url), apiOrigin(c));
     return c.json({ dish, owner: true });
   }
-  const dish = pickPublicKeys(toPublicDish(row, catalog, assetBase(c.env), apiOrigin(c)));
+  const dish = pickPublicKeys(toPublicDish(row, catalog, assetBase(c.env, c.req.url), apiOrigin(c)));
   assertPublicPayload({ dish });
   return c.json({ dish, owner: false });
 });
@@ -326,8 +321,9 @@ app.post("/api/owner/login", async (c) => {
   if (!ok) return c.json({ error: "密码不对" }, 401);
 
   const token = await issueOwnerSession(c);
-  // token is required on GitHub Pages → workers.dev: third-party cookies are
-  // often blocked even with SameSite=None; Secure; Partitioned.
+  // Same-origin Cloudflare Pages can use the httpOnly cookie (SameSite=Lax).
+  // GitHub Pages → workers.dev still needs JSON `token` + Bearer: third-party
+  // cookies are often blocked even with SameSite=None; Secure; Partitioned.
   return c.json({ ok: true, owner: true, token });
 });
 

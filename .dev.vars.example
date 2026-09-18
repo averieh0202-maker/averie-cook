@@ -1,0 +1,7 @@
+# Copy to .dev.vars for `npm run pages:dev` (gitignored).
+# Use the same local values as api/.dev.vars.
+OWNER_PASSWORD=averie-cook
+OWNER_SESSION_SECRET=dev-only-change-me-session-secret
+INGEST_SECRET=dev-only-change-me-ingest-secret
+ENVIRONMENT=development
+ASSET_BASE_URL=http://127.0.0.1:8788

@@ -24,3 +24,5 @@ jobs:
       - run: npm run build
         env:
           VITE_API_BASE_URL: https://averie-cook-api.averieh0202.workers.dev
+      - name: Build Cloudflare Pages (same-origin /api)
+        run: npm run build:pages && node scripts/assert-pages-same-origin.mjs
