@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img">
+  <title>牛肝菌意式烩饭</title>
+  <desc>暂无成菜照片</desc>
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="720" y2="760" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6b7c5a"/>
+      <stop offset="100%" stop-color="#c5d4b0"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="800" fill="url(#bg)"/>
+  <circle cx="240" cy="180" r="160" fill="#ffffff" opacity="0.18"/>
+  <ellipse cx="400" cy="430" rx="210" ry="70" fill="#3f4a34" opacity="0.22"/>
+  <ellipse cx="400" cy="360" rx="150" ry="48" fill="#efe4d4"/>
+  <path d="M250 340c20-90 70-150 150-150s130 60 150 150" fill="#8a6a48"/>
+  <path d="M300 338c14-62 48-102 100-102s86 40 100 102" fill="#a9845c"/>
+  <rect x="372" y="358" width="56" height="78" rx="18" fill="#efe4d4"/>
+  <text x="400" y="560" text-anchor="middle" fill="#fffaf2" font-size="42" font-family="serif">牛肝菌意式烩饭</text>
+  <text x="400" y="616" text-anchor="middle" fill="#fffaf2" opacity="0.86" font-size="24" font-family="sans-serif">暂无成菜照片</text>
+</svg>

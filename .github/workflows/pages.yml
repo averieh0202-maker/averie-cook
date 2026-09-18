@@ -24,6 +24,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Export public dishes snapshot
+        run: npm run snapshot
+        env:
+          AVERIE_API_BASE: ${{ vars.VITE_API_BASE_URL || 'https://averie-cook-api.averieh0202.workers.dev' }}
       - name: Build static site
         working-directory: web
         env:
