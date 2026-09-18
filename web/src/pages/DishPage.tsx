@@ -8,7 +8,7 @@ import { useAuth } from "../lib/auth";
 import { categoryLabel } from "../lib/categories";
 import { copy } from "../lib/copy";
 import { formatCookedAt } from "../lib/format";
-import { findSnapshotDish, getCachedCatalog, loadCatalogSnapshot } from "../lib/snapshot";
+import { findSnapshotDish, getCachedCatalog, loadCatalogSnapshot, overlayLiveDish } from "../lib/snapshot";
 import type { Dish, Recipe } from "../lib/types";
 
 function asStringList(value: unknown): string[] {
@@ -115,7 +115,7 @@ export function DishPage() {
     try {
       const res = await getDish(id, { signal });
       if (signal?.aborted) return;
-      setDish(res.dish);
+      setDish(overlayLiveDish(snapshotDish, res.dish));
       setAsOwner(res.owner);
       setError(null);
     } catch (err) {

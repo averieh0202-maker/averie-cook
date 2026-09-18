@@ -37,6 +37,7 @@ export const copy = {
     pick: "点选 1–10 分（每人一票）",
     people: (n: number) => `${n} 人评`,
     yours: (n: number) => `你评了 ${n} 分 · 再点只改你的分数，不另算一个人`,
+    yoursShort: (n: number) => `你评了 ${n} 分`,
   },
   account: {
     title: "登录评分",

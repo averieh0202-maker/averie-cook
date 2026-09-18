@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { categoryLabel } from "../lib/categories";
 import { copy } from "../lib/copy";
 import { formatCookedAt } from "../lib/format";
+import { homepageRatingState } from "../lib/rating-ui";
 import type { Dish } from "../lib/types";
 import { Cover } from "./Cover";
 import { RatingMark, ScorePicker } from "./Rating";
@@ -21,6 +22,7 @@ export function DishCard({
   priority?: boolean;
 }) {
   const to = `/dishes/${encodeURIComponent(dish.id)}`;
+  const rating = homepageRatingState(dish.myScore);
   return (
     <article className="overflow-hidden rounded-[1.7rem] bg-card shadow-card">
       <Link to={to} className="block">
@@ -41,15 +43,15 @@ export function DishCard({
         </div>
         <div className="space-y-2.5">
           <RatingMark avg={dish.ratingAvg} count={dish.ratingCount} />
-          <ScorePicker
-            value={dish.myScore}
-            disabled={busy}
-            compact
-            onChange={(score) => onRate(dish, score)}
-          />
-          <p className="text-sm text-mute">
-            {dish.myScore ? copy.rating.yours(dish.myScore) : copy.rating.pick}
-          </p>
+          {rating.showPicker ? (
+            <ScorePicker
+              value={dish.myScore}
+              disabled={busy}
+              compact
+              onChange={(score) => onRate(dish, score)}
+            />
+          ) : null}
+          <p className="text-sm text-mute">{rating.caption}</p>
         </div>
         {dish.categories.length ? (
           <div className="flex flex-wrap gap-1.5">

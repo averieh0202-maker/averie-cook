@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { jsonContainsPrivateTokens } from "./privacy";
-import { dishesForStatus, findSnapshotDish, normalizeCatalog, pickPublicDish } from "./snapshot";
+import { dishesForStatus, findSnapshotDish, normalizeCatalog, overlayLiveDish, pickPublicDish } from "./snapshot";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 
@@ -83,4 +83,39 @@ test("committed Pages snapshot is anonymous and has covers", () => {
   const risotto = cooked.dishes.find((d: { id: string }) => d.id === "2026-09-14-chicken-pumpkin-risotto");
   assert.ok(risotto.ratingAvg);
   assert.ok(risotto.ratingCount >= 1);
+  assert.equal(risotto.cookedAt, "2026-09-14");
+  assert.ok(Array.isArray(risotto.categories) && risotto.categories.length > 0);
+  for (const dish of cooked.dishes) {
+    assert.equal(typeof dish.cookedAt, "string");
+    assert.match(dish.cookedAt, /^\d{4}-\d{2}-\d{2}$/);
+  }
+});
+
+test("overlayLiveDish keeps snapshot cookedAt and categories when live wiped them", () => {
+  const snap = pickPublicDish({
+    id: "2026-09-14-chicken-pumpkin-risotto",
+    title: "意式鸡肉南瓜烩饭",
+    status: "cooked",
+    categories: [{ id: "italian", name: "意式", sort: 1 }],
+    cookedAt: "2026-09-14",
+    coverUrl: "covers/2026-09-14-chicken-pumpkin-risotto.jpg",
+  });
+  assert.ok(snap);
+  const live = pickPublicDish({
+    id: "2026-09-14-chicken-pumpkin-risotto",
+    title: "意式鸡肉南瓜烩饭",
+    status: "cooked",
+    categories: [],
+    cookedAt: null,
+    coverUrl: "/api/media/new.jpg",
+    ratingAvg: 8.8,
+    ratingCount: 4,
+  });
+  assert.ok(live);
+  const merged = overlayLiveDish(snap, live);
+  assert.equal(merged.cookedAt, "2026-09-14");
+  assert.equal(merged.categories.length, 1);
+  assert.equal(merged.categories[0].id, "italian");
+  assert.equal(merged.ratingCount, 4);
+  assert.equal(merged.coverUrl, "/api/media/new.jpg");
 });

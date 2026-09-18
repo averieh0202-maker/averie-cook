@@ -91,6 +91,22 @@ export function findSnapshotDish(dishes: Dish[], id: string): Dish | undefined {
   return dishes.find((d) => d.id === id);
 }
 
+/** Live D1 can omit cookedAt/categories after a partial ingest; keep snapshot values. */
+export function overlayLiveDish(snapshot: Dish | undefined, live: Dish): Dish {
+  if (!snapshot) return live;
+  return {
+    ...live,
+    cookedAt: live.cookedAt || snapshot.cookedAt,
+    categories: live.categories.length ? live.categories : snapshot.categories,
+    coverUrl: live.coverUrl || snapshot.coverUrl,
+  };
+}
+
+export function overlayLiveDishes(snapshotDishes: Dish[], liveDishes: Dish[]): Dish[] {
+  const byId = new Map(snapshotDishes.map((dish) => [dish.id, dish]));
+  return liveDishes.map((dish) => overlayLiveDish(byId.get(dish.id), dish));
+}
+
 let cached: CatalogSnapshot | null = null;
 let inflight: Promise<CatalogSnapshot> | null = null;
 

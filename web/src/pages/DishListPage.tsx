@@ -6,7 +6,7 @@ import { categoryLabel, dishHasCategory } from "../lib/categories";
 import { copy } from "../lib/copy";
 import { dishMatchesQuery } from "../lib/format";
 import { useAuth } from "../lib/auth";
-import { dishesForStatus, getCachedCatalog, loadCatalogSnapshot } from "../lib/snapshot";
+import { dishesForStatus, getCachedCatalog, loadCatalogSnapshot, overlayLiveDishes } from "../lib/snapshot";
 import type { Category, Dish } from "../lib/types";
 
 function failMessage(err: unknown): string {
@@ -51,7 +51,7 @@ export function DishListPage({
         listCategories({ signal }).catch(() => ({ categories: [] as Category[] })),
       ]);
       if (signal?.aborted) return;
-      setDishes(dishRes.dishes);
+      setDishes(overlayLiveDishes(getCachedCatalog()?.dishes ?? [], dishRes.dishes));
       if (catRes.categories.length) setCatalog(catRes.categories);
       setOffline(false);
     } catch (err) {

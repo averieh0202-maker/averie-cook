@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-18T11:41:11.951Z",
+  "generatedAt": "2026-09-18T13:59:20.237Z",
   "source": "seed+live",
   "categories": [
     {
@@ -108,8 +108,8 @@
       "cookedAt": "2026-09-15",
       "sourceUrl": null,
       "sourceType": null,
-      "ratingAvg": 8,
-      "ratingCount": 1,
+      "ratingAvg": 9,
+      "ratingCount": 2,
       "wantEatCount": 0,
       "myScore": null,
       "wanted": false,
@@ -142,14 +142,14 @@
       "cookedAt": "2026-09-14",
       "sourceUrl": null,
       "sourceType": null,
-      "ratingAvg": 8.7,
-      "ratingCount": 3,
+      "ratingAvg": 8.8,
+      "ratingCount": 4,
       "wantEatCount": 0,
       "myScore": null,
       "wanted": false,
       "published": true,
       "createdAt": "2026-09-17T03:00:20.939Z",
-      "updatedAt": "2026-09-17T03:00:20.939Z"
+      "updatedAt": "2026-09-18T13:54:56.939Z"
     }
   ]
 }

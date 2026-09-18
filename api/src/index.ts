@@ -33,11 +33,17 @@ import {
   type DishRow,
   parseRatingScore,
   pickPublicKeys,
-  sanitizeCoverPath,
   toOwnerDish,
   toPublicDish,
 } from "./dto";
 import type { Env } from "./env";
+import {
+  DISH_INSERT_SQL,
+  DISH_UPDATE_SQL,
+  ingestInsertBinds,
+  ingestUpdateBinds,
+  parseIngestBody,
+} from "./ingest";
 import { CoverFilterError } from "./foodFilter";
 import { filterCoverBytes } from "./imageCodec";
 import {
@@ -411,9 +417,12 @@ async function upsertDish(c: Context<{ Bindings: Env }>): Promise<Response> {
   if (!DISH_ID_RE.test(id)) return c.json({ error: "id 须为 1–80 位字母数字._-" }, 400);
 
   const existing = await c.env.DB.prepare("SELECT id FROM dishes WHERE id = ?").bind(id).first();
+  const parsed = parseIngestBody(body, Boolean(existing));
+  if (!parsed.ok) return c.json({ error: parsed.error }, parsed.status);
+
   const now = new Date().toISOString();
 
-  if (body.deleted === true) {
+  if (parsed.value.deleted) {
     if (!existing) return c.json({ error: "找不到这道菜" }, 404);
     await c.env.DB.prepare("UPDATE dishes SET deleted_at = ?, updated_at = ? WHERE id = ?")
       .bind(now, now, id)
@@ -421,71 +430,10 @@ async function upsertDish(c: Context<{ Bindings: Env }>): Promise<Response> {
     return c.json({ ok: true, id, deleted: true });
   }
 
-  const title = typeof body.title === "string" ? body.title.trim() : "";
-  if (!title || title.length > 80) return c.json({ error: "title 必填，最多 80 字" }, 400);
-  const status = body.status === "want_cook" ? "want_cook" : body.status === "cooked" ? "cooked" : null;
-  if (!status) return c.json({ error: "status 须为 cooked | want_cook" }, 400);
-
-  let categories: string[] = [];
-  if (Array.isArray(body.categories)) {
-    categories = body.categories.filter((x): x is string => typeof x === "string").slice(0, 12);
-  }
-  let coverPath: string | null = null;
-  if (typeof body.coverPath === "string" && body.coverPath.trim()) {
-    coverPath = sanitizeCoverPath(body.coverPath);
-    if (!coverPath) return c.json({ error: "coverPath 非法" }, 400);
-  }
-  const cookedAt = typeof body.cookedAt === "string" ? body.cookedAt.slice(0, 10) : null;
-  const sourceUrl = typeof body.sourceUrl === "string" ? body.sourceUrl.slice(0, 500) : null;
-  const sourceType = typeof body.sourceType === "string" ? body.sourceType.slice(0, 40) : null;
-  const published = body.published === false ? 0 : 1;
-  const recipe =
-    body.recipe && typeof body.recipe === "object" ? JSON.stringify(body.recipe) : null;
-
   if (existing) {
-    await c.env.DB.prepare(
-      `UPDATE dishes SET
-        title=?, status=?, categories=?, cover_path=COALESCE(?, cover_path),
-        cooked_at=?, source_url=?, source_type=?,
-        recipe=COALESCE(?, recipe), published=?, deleted_at=NULL, updated_at=?
-      WHERE id=?`,
-    )
-      .bind(
-        title,
-        status,
-        JSON.stringify(categories),
-        coverPath,
-        cookedAt,
-        sourceUrl,
-        sourceType,
-        recipe,
-        published,
-        now,
-        id,
-      )
-      .run();
+    await c.env.DB.prepare(DISH_UPDATE_SQL).bind(...ingestUpdateBinds(parsed.value, now)).run();
   } else {
-    await c.env.DB.prepare(
-      `INSERT INTO dishes (
-        id, title, status, categories, cover_path, cooked_at, source_url, source_type,
-        recipe, published, deleted_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
-    )
-      .bind(
-        id,
-        title,
-        status,
-        JSON.stringify(categories),
-        coverPath,
-        cookedAt,
-        sourceUrl,
-        sourceType,
-        recipe,
-        published,
-        now,
-        now,
-      )
-      .run();
+    await c.env.DB.prepare(DISH_INSERT_SQL).bind(...ingestInsertBinds(parsed.value, now)).run();
   }
 
   return c.json({ ok: true, id });

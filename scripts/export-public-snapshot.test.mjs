@@ -88,3 +88,30 @@ test("live overlay copies ratings but never Worker media URLs", () => {
   assert.equal(pagesCoverForDish("2026-09-15-porcini-risotto", coverFiles), "covers/2026-09-15-porcini-risotto.svg");
   assert.deepEqual(jsonContainsPrivateTokens({ dishes: merged }), []);
 });
+
+test("live overlay keeps seed cookedAt and categories when API sent null/empty", () => {
+  const catalog = new Map([["italian", { id: "italian", name: "意式", sort: 1 }]]);
+  const base = [
+    pickPublicDish(seed.dishes[0], catalog, coverFiles),
+  ].filter(Boolean);
+  const merged = mergeLiveDishes(
+    base,
+    [
+      {
+        id: "2026-09-14-chicken-pumpkin-risotto",
+        title: "意式鸡肉南瓜烩饭",
+        status: "cooked",
+        categories: [],
+        cookedAt: null,
+        ratingAvg: 8.8,
+        ratingCount: 4,
+      },
+    ],
+    catalog,
+    coverFiles,
+  );
+  const risotto = merged.find((d) => d.id === "2026-09-14-chicken-pumpkin-risotto");
+  assert.equal(risotto.cookedAt, "2026-09-14");
+  assert.equal(risotto.categories[0].id, "italian");
+  assert.equal(risotto.ratingAvg, 8.8);
+});
