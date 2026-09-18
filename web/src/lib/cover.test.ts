@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   filenameFromCoverUrl,
   isWorkerMediaUrl,
@@ -48,4 +51,16 @@ test("resolveCoverUrl prefers Pages files and never returns workers.dev", () => 
   const resolved = resolveCoverUrl("covers/2026-09-14-chicken-pumpkin-risotto.jpg");
   assert.equal(resolved, "/covers/2026-09-14-chicken-pumpkin-risotto.jpg");
   assert.equal(resolved && isWorkerMediaUrl(resolved), false);
+});
+
+test("placeholder SVGs are UTF-8 and contain the dish titles", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
+  const porcini = readFileSync(join(root, "public/covers/2026-09-15-porcini-risotto.svg"), "utf8");
+  const beef = readFileSync(join(root, "public/covers/2026-09-16-beef-short-rib-rice.svg"), "utf8");
+  assert.match(porcini, /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
+  assert.match(beef, /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
+  assert.equal(porcini.includes("牛肝菌意式烩饭"), true);
+  assert.equal(beef.includes("牛肋条卤肉饭"), true);
+  assert.equal(porcini.includes("暂无成菜照片"), true);
+  assert.equal(beef.includes("暂无成菜照片"), true);
 });

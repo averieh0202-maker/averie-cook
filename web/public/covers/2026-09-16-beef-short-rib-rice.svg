@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title sub">
-  <title id="title">[�ad�m</title>
-  <desc id="sub">���gG</desc>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img">
+  <title>牛肋条卤肉饭</title>
+  <desc>暂无成菜照片</desc>
   <defs>
     <linearGradient id="bg" x1="60" y1="20" x2="760" y2="780" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#8f4226"/>
@@ -8,12 +9,12 @@
     </linearGradient>
   </defs>
   <rect width="800" height="800" fill="url(#bg)"/>
-  <circle cx="580" cy="150" r="150" fill="#fff" opacity="0.16"/>
+  <circle cx="580" cy="150" r="150" fill="#ffffff" opacity="0.16"/>
   <ellipse cx="400" cy="455" rx="230" ry="78" fill="#5a2a18" opacity="0.28"/>
   <ellipse cx="400" cy="360" rx="200" ry="118" fill="#fffaf2" opacity="0.16"/>
   <ellipse cx="400" cy="372" rx="168" ry="92" fill="#c45c26"/>
   <ellipse cx="400" cy="348" rx="120" ry="56" fill="#e8b86d"/>
   <path d="M300 340c40 28 90 40 100 8 18 36 70 40 110 6" fill="none" stroke="#fffaf2" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
-  <text x="400" y="560" text-anchor="middle" fill="#fffaf2" font-size="42" font-family="Songti SC, STSong, serif">[�ad�m</text>
-  <text x="400" y="616" text-anchor="middle" fill="#fffaf2" opacity="0.86" font-size="24" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif">���gG</text>
+  <text x="400" y="560" text-anchor="middle" fill="#fffaf2" font-size="42" font-family="serif">牛肋条卤肉饭</text>
+  <text x="400" y="616" text-anchor="middle" fill="#fffaf2" opacity="0.86" font-size="24" font-family="sans-serif">暂无成菜照片</text>
 </svg>
