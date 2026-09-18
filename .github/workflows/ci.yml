@@ -15,6 +15,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Export public dishes snapshot
+        run: npm run snapshot
+        env:
+          AVERIE_API_BASE: https://averie-cook-api.averieh0202.workers.dev
       - run: npm test
       - run: npm run typecheck
       - run: npm run build

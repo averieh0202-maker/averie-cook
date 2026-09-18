@@ -14,6 +14,13 @@ export class ApiError extends Error {
   }
 }
 
+export function isUnreachableError(err: unknown): boolean {
+  if (err instanceof ApiError && (err.message === "slow" || err.status === 0)) return true;
+  if (err instanceof TypeError) return true;
+  if (err instanceof Error && /failed to fetch|networkerror|load failed/i.test(err.message)) return true;
+  return false;
+}
+
 export function getOwnerToken(): string | null {
   try {
     const token = localStorage.getItem(OWNER_TOKEN_KEY);
@@ -95,7 +102,8 @@ export function clearRaterSession(): void {
   resetVisitorIdentity();
 }
 
-const FETCH_TIMEOUT_MS = 8000;
+const GET_TIMEOUT_MS = 3500;
+const MUTATION_TIMEOUT_MS = 8000;
 
 function timeoutSignal(parent: AbortSignal | undefined, ms: number): { signal: AbortSignal; cancel: () => void } {
   const ctrl = new AbortController();
@@ -128,7 +136,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.body && !(init.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const { signal, cancel } = timeoutSignal(init.signal ?? undefined, FETCH_TIMEOUT_MS);
+  const method = (init.method || "GET").toUpperCase();
+  const timeoutMs = method === "GET" || method === "HEAD" ? GET_TIMEOUT_MS : MUTATION_TIMEOUT_MS;
+  const parentSignal = init.signal ?? undefined;
+  const { signal, cancel } = timeoutSignal(parentSignal, timeoutMs);
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
@@ -140,9 +151,11 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   } catch (err) {
     cancel();
     if (err instanceof DOMException && err.name === "AbortError") {
+      if (parentSignal?.aborted) throw err;
       throw new ApiError("slow", 0);
     }
     if (err instanceof Error && err.name === "AbortError") {
+      if (parentSignal?.aborted) throw err;
       throw new ApiError("slow", 0);
     }
     throw err;
@@ -165,16 +178,16 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-export function listCategories() {
-  return request<{ categories: Category[] }>("/api/categories");
+export function listCategories(init: RequestInit = {}) {
+  return request<{ categories: Category[] }>("/api/categories", init);
 }
 
-export function listDishes(status: "cooked" | "want_cook" | "want_eat") {
-  return request<{ dishes: Dish[] }>(`/api/dishes?status=${encodeURIComponent(status)}`);
+export function listDishes(status: "cooked" | "want_cook" | "want_eat", init: RequestInit = {}) {
+  return request<{ dishes: Dish[] }>(`/api/dishes?status=${encodeURIComponent(status)}`, init);
 }
 
-export function getDish(id: string) {
-  return request<{ dish: Dish; owner: boolean }>(`/api/dishes/${encodeURIComponent(id)}`);
+export function getDish(id: string, init: RequestInit = {}) {
+  return request<{ dish: Dish; owner: boolean }>(`/api/dishes/${encodeURIComponent(id)}`, init);
 }
 
 export function rateDish(id: string, score: number) {

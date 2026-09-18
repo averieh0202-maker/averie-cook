@@ -1,0 +1,155 @@
+{
+  "generatedAt": "2026-09-18T11:41:11.951Z",
+  "source": "seed+live",
+  "categories": [
+    {
+      "id": "italian",
+      "name": "意式",
+      "sort": 1
+    },
+    {
+      "id": "risotto",
+      "name": "烩饭",
+      "sort": 2
+    },
+    {
+      "id": "chinese",
+      "name": "中式",
+      "sort": 3
+    },
+    {
+      "id": "braise",
+      "name": "卤煮",
+      "sort": 4
+    },
+    {
+      "id": "beef",
+      "name": "牛肉",
+      "sort": 5
+    },
+    {
+      "id": "chicken",
+      "name": "鸡肉",
+      "sort": 6
+    },
+    {
+      "id": "mushroom",
+      "name": "菌菇",
+      "sort": 7
+    },
+    {
+      "id": "staple",
+      "name": "主食",
+      "sort": 8
+    }
+  ],
+  "dishes": [
+    {
+      "id": "2026-09-16-beef-short-rib-rice",
+      "title": "牛肋条卤肉饭",
+      "status": "cooked",
+      "categories": [
+        {
+          "id": "chinese",
+          "name": "中式",
+          "sort": 3
+        },
+        {
+          "id": "braise",
+          "name": "卤煮",
+          "sort": 4
+        },
+        {
+          "id": "beef",
+          "name": "牛肉",
+          "sort": 5
+        },
+        {
+          "id": "staple",
+          "name": "主食",
+          "sort": 8
+        }
+      ],
+      "coverUrl": "covers/2026-09-16-beef-short-rib-rice.svg",
+      "cookedAt": "2026-09-16",
+      "sourceUrl": null,
+      "sourceType": null,
+      "ratingAvg": 8,
+      "ratingCount": 1,
+      "wantEatCount": 0,
+      "myScore": null,
+      "wanted": false,
+      "published": true,
+      "createdAt": "2026-09-17T03:00:20.939Z",
+      "updatedAt": "2026-09-17T03:00:20.939Z"
+    },
+    {
+      "id": "2026-09-15-porcini-risotto",
+      "title": "牛肝菌意式烩饭",
+      "status": "cooked",
+      "categories": [
+        {
+          "id": "italian",
+          "name": "意式",
+          "sort": 1
+        },
+        {
+          "id": "risotto",
+          "name": "烩饭",
+          "sort": 2
+        },
+        {
+          "id": "mushroom",
+          "name": "菌菇",
+          "sort": 7
+        }
+      ],
+      "coverUrl": "covers/2026-09-15-porcini-risotto.svg",
+      "cookedAt": "2026-09-15",
+      "sourceUrl": null,
+      "sourceType": null,
+      "ratingAvg": 8,
+      "ratingCount": 1,
+      "wantEatCount": 0,
+      "myScore": null,
+      "wanted": false,
+      "published": true,
+      "createdAt": "2026-09-17T03:00:20.939Z",
+      "updatedAt": "2026-09-17T03:00:20.939Z"
+    },
+    {
+      "id": "2026-09-14-chicken-pumpkin-risotto",
+      "title": "意式鸡肉南瓜烩饭",
+      "status": "cooked",
+      "categories": [
+        {
+          "id": "italian",
+          "name": "意式",
+          "sort": 1
+        },
+        {
+          "id": "risotto",
+          "name": "烩饭",
+          "sort": 2
+        },
+        {
+          "id": "chicken",
+          "name": "鸡肉",
+          "sort": 6
+        }
+      ],
+      "coverUrl": "covers/2026-09-14-chicken-pumpkin-risotto.jpg",
+      "cookedAt": "2026-09-14",
+      "sourceUrl": null,
+      "sourceType": null,
+      "ratingAvg": 8.7,
+      "ratingCount": 3,
+      "wantEatCount": 0,
+      "myScore": null,
+      "wanted": false,
+      "published": true,
+      "createdAt": "2026-09-17T03:00:20.939Z",
+      "updatedAt": "2026-09-17T03:00:20.939Z"
+    }
+  ]
+}

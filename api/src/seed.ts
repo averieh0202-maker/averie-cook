@@ -135,7 +135,7 @@ export async function ensureSeed(env: Env): Promise<void> {
   await env.DB.batch(dishStmts);
 
   await putMedia(env, SEED_COVER_FILENAME, coverBytes(), "image/jpeg");
-  // Seed risotto cover is also shipped on GitHub Pages (`web/public/covers/`).
-  // DTO routes that filename to Pages so CN phones do not fetch workers.dev for the photo.
+  // Seed risotto cover + designed placeholders also live on GitHub Pages (`web/public/covers/`).
+  // Homepage reads those same-origin files; it does not wait on workers.dev /api/media.
   seeded = true;
 }

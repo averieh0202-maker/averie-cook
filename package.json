@@ -12,9 +12,10 @@
     "dev:api": "npm run dev -w api",
     "build": "npm run build -w web",
     "preview": "npm run preview -w web",
-    "test": "npm run test -w api && npx tsx --test web/src/lib/visitor.test.ts",
+    "test": "npm run test -w api && npx tsx --test web/src/lib/*.test.ts scripts/export-public-snapshot.test.mjs && bash scripts/verify-recipe-leak.sh --snapshot-only",
     "typecheck": "npm run typecheck -w web && npm run typecheck -w api",
-    "seed:local": "npm run seed:local -w api"
+    "seed:local": "npm run seed:local -w api",
+    "snapshot": "node scripts/export-public-snapshot.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

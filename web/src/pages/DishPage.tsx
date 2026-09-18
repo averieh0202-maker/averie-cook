@@ -3,11 +3,12 @@ import { Link, useParams } from "react-router-dom";
 import { Cover } from "../components/Cover";
 import { RatingAccountHint, RatingMark, ScorePicker } from "../components/Rating";
 import { WantEatButton } from "../components/WantEatButton";
-import { ApiError, getDish, rateDish, toggleWantEat } from "../lib/api";
+import { ApiError, getDish, isUnreachableError, rateDish, toggleWantEat } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { categoryLabel } from "../lib/categories";
 import { copy } from "../lib/copy";
 import { formatCookedAt } from "../lib/format";
+import { findSnapshotDish, getCachedCatalog, loadCatalogSnapshot } from "../lib/snapshot";
 import type { Dish, Recipe } from "../lib/types";
 
 function asStringList(value: unknown): string[] {
@@ -81,33 +82,62 @@ function RecipeBlock({ recipe }: { recipe: Recipe }) {
 }
 
 function failMessage(err: unknown): string {
+  if (isUnreachableError(err)) return copy.offlineRatings;
   return err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError;
 }
 
 export function DishPage() {
   const { id = "" } = useParams();
   const { owner, identityEpoch } = useAuth();
-  const [dish, setDish] = useState<Dish | null>(null);
+  const [dish, setDish] = useState<Dish | null>(() => {
+    const snap = getCachedCatalog();
+    return snap ? findSnapshotDish(snap.dishes, id) ?? null : null;
+  });
   const [asOwner, setAsOwner] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setError(null);
+    let snapshotDish: Dish | undefined;
     try {
-      const res = await getDish(id);
+      const snap = getCachedCatalog() ?? (await loadCatalogSnapshot());
+      if (signal?.aborted) return;
+      snapshotDish = findSnapshotDish(snap.dishes, id);
+      if (snapshotDish) {
+        const fromSnap = snapshotDish;
+        setDish((prev) => (prev?.id === id ? prev : fromSnap));
+      }
+    } catch {
+      // Live API may still succeed.
+    }
+
+    try {
+      const res = await getDish(id, { signal });
+      if (signal?.aborted) return;
       setDish(res.dish);
       setAsOwner(res.owner);
+      setError(null);
     } catch (err) {
-      setError(failMessage(err));
+      if (signal?.aborted) return;
+      if (snapshotDish) {
+        setDish(snapshotDish);
+        setError(copy.offlineRatings);
+      } else {
+        setError(failMessage(err));
+      }
     }
   }, [id, owner, identityEpoch]);
 
   useEffect(() => {
-    setDish(null);
     setAsOwner(false);
-    void load();
-  }, [id, owner, load]);
+    const snap = getCachedCatalog();
+    const fromSnap = snap ? findSnapshotDish(snap.dishes, id) : undefined;
+    setDish(fromSnap ?? null);
+    const ctrl = new AbortController();
+    void load(ctrl.signal);
+    return () => ctrl.abort();
+  }, [id, load]);
 
   async function onRate(score: number) {
     if (!dish) return;
@@ -115,6 +145,7 @@ export function DishPage() {
     try {
       const res = await rateDish(dish.id, score);
       setDish({ ...dish, myScore: res.myScore, ratingAvg: res.ratingAvg, ratingCount: res.ratingCount });
+      setError(null);
     } catch (err) {
       setError(failMessage(err));
     } finally {
@@ -128,6 +159,7 @@ export function DishPage() {
     try {
       const res = await toggleWantEat(dish.id);
       setDish({ ...dish, wanted: res.wanted, wantEatCount: res.wantEatCount });
+      setError(null);
     } catch (err) {
       setError(failMessage(err));
     } finally {

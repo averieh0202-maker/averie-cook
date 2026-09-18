@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { resolveCoverUrl, workerCoverFallback } from "../lib/cover";
+import { resolveCoverUrl } from "../lib/cover";
 import { copy } from "../lib/copy";
 import type { Dish } from "../lib/types";
 
@@ -56,16 +56,15 @@ export function Cover({
 }) {
   const [from, to] = paletteFor(dish.id);
   const initial = dish.title.slice(0, 1) || "菜";
-  const primary = resolveCoverUrl(dish.coverUrl);
-  const fallback = workerCoverFallback(dish.coverUrl);
+  const primary = resolveCoverUrl(dish);
   const [src, setSrc] = useState<string | null>(primary);
   const [failed, setFailed] = useState(!primary);
 
   useEffect(() => {
-    const next = resolveCoverUrl(dish.coverUrl);
+    const next = resolveCoverUrl({ id: dish.id, coverUrl: dish.coverUrl });
     setSrc(next);
     setFailed(!next);
-  }, [dish.coverUrl]);
+  }, [dish.id, dish.coverUrl]);
 
   if (!src || failed) {
     return (
@@ -86,13 +85,7 @@ export function Cover({
         fetchPriority={priority ? "high" : "low"}
         sizes="(max-width: 32rem) 100vw, 32rem"
         className="relative z-[1] h-full w-full object-cover object-center"
-        onError={() => {
-          if (fallback && src !== fallback) {
-            setSrc(fallback);
-            return;
-          }
-          setFailed(true);
-        }}
+        onError={() => setFailed(true)}
       />
       <span className="sr-only">{copy.coverLoading}</span>
     </div>

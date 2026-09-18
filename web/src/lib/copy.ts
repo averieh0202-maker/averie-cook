@@ -58,6 +58,7 @@ export const copy = {
   wantEatCount: (n: number) => `${n} 人想吃`,
   loadError: "没加载出来，再试一次？",
   slowError: "网络有点慢，再试一次？",
+  offlineRatings: "网络不通，评分暂不可用",
   loginHint: "只有站长能改档案、看完整食谱",
   cookedMark: "做过",
 } as const;

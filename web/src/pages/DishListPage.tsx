@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DishCard } from "../components/DishCard";
 import { RatingAccountHint } from "../components/Rating";
-import { ApiError, listCategories, listDishes, rateDish, toggleWantEat } from "../lib/api";
+import { ApiError, isUnreachableError, listCategories, listDishes, rateDish, toggleWantEat } from "../lib/api";
 import { categoryLabel, dishHasCategory } from "../lib/categories";
 import { copy } from "../lib/copy";
 import { dishMatchesQuery } from "../lib/format";
 import { useAuth } from "../lib/auth";
+import { dishesForStatus, getCachedCatalog, loadCatalogSnapshot } from "../lib/snapshot";
 import type { Category, Dish } from "../lib/types";
+
+function failMessage(err: unknown): string {
+  return isUnreachableError(err) ? copy.offlineRatings : err instanceof ApiError ? err.message : copy.loadError;
+}
 
 export function DishListPage({
   status,
@@ -16,33 +21,64 @@ export function DishListPage({
   empty: string;
 }) {
   const { identityEpoch } = useAuth();
-  const [dishes, setDishes] = useState<Dish[] | null>(null);
-  const [catalog, setCatalog] = useState<Category[]>([]);
+  const cached = getCachedCatalog();
+  const [dishes, setDishes] = useState<Dish[] | null>(() =>
+    cached ? dishesForStatus(cached.dishes, status) : null,
+  );
+  const [catalog, setCatalog] = useState<Category[]>(() => cached?.categories ?? []);
   const [error, setError] = useState<string | null>(null);
+  const [offline, setOffline] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [categoryId, setCategoryId] = useState("all");
   const [query, setQuery] = useState("");
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setError(null);
+    let snapshotOk = Boolean(getCachedCatalog());
+    try {
+      const snap = await loadCatalogSnapshot();
+      if (signal?.aborted) return;
+      snapshotOk = true;
+      setDishes(dishesForStatus(snap.dishes, status));
+      if (snap.categories.length) setCatalog(snap.categories);
+    } catch {
+      // Same-origin snapshot missing — wait for live API.
+    }
+
     try {
       const [dishRes, catRes] = await Promise.all([
-        listDishes(status),
-        listCategories().catch(() => ({ categories: [] as Category[] })),
+        listDishes(status, { signal }),
+        listCategories({ signal }).catch(() => ({ categories: [] as Category[] })),
       ]);
+      if (signal?.aborted) return;
       setDishes(dishRes.dishes);
-      setCatalog(catRes.categories);
+      if (catRes.categories.length) setCatalog(catRes.categories);
+      setOffline(false);
     } catch (err) {
-      setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
+      if (signal?.aborted) return;
+      if (snapshotOk) {
+        setOffline(true);
+        setError(copy.offlineRatings);
+      } else {
+        setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
+      }
     }
   }, [status, identityEpoch]);
 
   useEffect(() => {
     setCategoryId("all");
     setQuery("");
-    setDishes(null);
-    void load();
-  }, [load]);
+    const snap = getCachedCatalog();
+    if (snap) {
+      setDishes(dishesForStatus(snap.dishes, status));
+      if (snap.categories.length) setCatalog(snap.categories);
+    } else {
+      setDishes(null);
+    }
+    const ctrl = new AbortController();
+    void load(ctrl.signal);
+    return () => ctrl.abort();
+  }, [load, status]);
 
   const filters = useMemo(() => {
     if (catalog.length) return catalog;
@@ -76,8 +112,10 @@ export function DishListPage({
         if (status === "want_eat") return next.filter((d) => d.wantEatCount > 0);
         return next;
       });
+      setOffline(false);
+      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
+      setError(failMessage(err));
     } finally {
       setBusyId(null);
     }
@@ -95,8 +133,10 @@ export function DishListPage({
             : d,
         );
       });
+      setOffline(false);
+      setError(null);
     } catch (err) {
-      setError(err instanceof ApiError && err.message === "slow" ? copy.slowError : copy.loadError);
+      setError(failMessage(err));
     } finally {
       setBusyId(null);
     }
@@ -134,6 +174,8 @@ export function DishListPage({
     );
   }
 
+  const banner = error || (offline ? copy.offlineRatings : null);
+
   return (
     <div className="space-y-4">
       <RatingAccountHint />
@@ -148,9 +190,9 @@ export function DishListPage({
         />
       </label>
 
-      {error ? (
-        <div className="rounded-2xl bg-chip px-3 py-2 text-center text-sm text-clay">
-          <p>{error}</p>
+      {banner ? (
+        <div className="rounded-2xl bg-chip px-3 py-2 text-center text-sm text-clay" role="status">
+          <p>{banner}</p>
           <button type="button" className="mt-1 font-medium" onClick={() => void load()}>
             {copy.btn.retry}
           </button>

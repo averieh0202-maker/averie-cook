@@ -5,13 +5,31 @@
 **长期公开 URL：** https://averieh0202-maker.github.io/averie-cook/  
 **API：** `https://averie-cook-api.averieh0202.workers.dev`（部署后按你的 workers 子域替换）
 
-聊天记录不是档案。成菜总结、完整食谱、封面图都写在 **Cloudflare D1**（结构化）里；图片同时写入 D1 `media_objects`，并可镜像到 **KV / R2**。GitHub Pages 只托管静态前端，**不能**作为运行时写入存储。重新部署 Worker **不会**清空 D1。
+聊天记录不是档案。成菜总结、完整食谱写在 **Cloudflare D1**；图片可写入 D1 `media_objects` / KV / R2。GitHub Pages 托管静态前端，并带一份 **匿名菜品快照**（标题、日期、分类、封面、平均分）。重新部署 Worker **不会**清空 D1。
 
-首页卡片可直接 **1–10 分评分**（不必进详情）。每人一个身份（`visitor_key`），平均分按不同身份计算。**同一人再评只改自己的分数，不另算一个人。** 匿名响应仍然不含完整食谱。
+首页卡片可直接 **1–10 分评分**（不必进详情）。每人一个身份（`visitor_key`），平均分按不同身份计算。**同一人再评只改自己的分数，不另算一个人。** 匿名响应和 Pages 快照都 **不含完整食谱**。
 
 本机身份写在 GitHub Pages 源站的 **localStorage + 第一方 cookie**（`SameSite=Lax`，长期有效）。仅靠 localStorage 时，微信内置浏览器或清除站点数据会当成新人反复投票。可选 **昵称 + PIN 账号**，换设备也能找回同一份分数。
 
-大陆手机：前端 **不加载 Google Fonts**（用系统黑体 / 宋体）；烩饭封面从 **GitHub Pages** 出（约 58KB、800px），不再默认走 `workers.dev` `/api/media`。API 超过约 8 秒会提示重试，封面失败则显示色块占位。
+### 大陆手机（workers.dev 不可达）
+
+`*.workers.dev` 在中国大陆手机上经常被墙或极慢。若首页死等 Worker 列表接口，就会一直骨架屏 / 「信息加载不出来」。
+
+因此首页是 **static-first**：
+
+1. 立刻用 GitHub Pages 同源的 `data/catalog.json`（以及 `data/dishes-cooked.json`）画出菜卡：标题、日期、分类、快照平均分、封面。
+2. 封面只走 Pages：`web/public/covers/`（烩饭实拍 JPEG；另外两道暂无成菜照片时用设计占位图）。**不请求** `/api/media`。
+3. 再用很短超时尝试 Worker。成功则刷新实时评分、登录态、想吃；失败则保留快照，并显示非阻断提示 **「网络不通，评分暂不可用」**。评分 / 想吃写入同样软失败，整页不会空白。
+
+不需要为此购买自定义域名。可读路径只部署 GitHub Pages 即可；Worker 只用于登录、评分、想吃、ingest。
+
+刷新快照：
+
+```sh
+npm run snapshot
+```
+
+CI 在 Pages 构建前也会跑。快照只含匿名 DTO，脚本会拒绝写入 recipe。
 
 ## 本地运行
 
@@ -96,7 +114,7 @@ curl -s http://127.0.0.1:8787/api/dishes?status=cooked
 
 应看到 3 道菜。烩饭封面 URL 形如  
 `https://averieh0202-maker.github.io/averie-cook/covers/2026-09-14-chicken-pumpkin-risotto.jpg`  
-（Worker 上传的其它图仍是 `/api/media/<uuid>.jpg`）。
+另外两道若 Worker 仍返回 `coverUrl: null`，前端会改用 Pages 占位封面。匿名快照在 `web/public/data/`（`npm run snapshot` 生成；`bash scripts/verify-recipe-leak.sh --snapshot-only` 检查不含食谱）。
 
 ## 如何 ingest（米其林大厨）
 
@@ -130,7 +148,9 @@ curl -s -H "X-Ingest-Secret: $INGEST_SECRET" \
 
 ## 部署
 
-### 1) Cloudflare Worker + D1（必须）
+### 1) Cloudflare Worker + D1（实时评分 / 登录 / 写入）
+
+首页 **读路径不依赖 Worker**：GitHub Pages 的快照和封面足够在大陆手机上看菜。Worker 仍用于登录、打分、想吃、ingest。
 
 ```sh
 cd api
@@ -149,10 +169,10 @@ npx wrangler deploy
 
 **不要**把 `OWNER_PASSWORD` 设成默认值 `averie-cook`。
 
-合并后请 **先部署 Worker（含 D1 迁移），再等 GitHub Pages**：
+合并后请 **先等 GitHub Pages**（读路径足够），Worker 只在需要实时评分 / 登录 / 写入时部署：
 
-1. **Worker + D1**：`0004_raters.sql` 增加评分账号表。不需要新 secret（PIN 哈希复用 `OWNER_SESSION_SECRET`）。
-2. **GitHub Pages**（push `main` 后 Actions 自动部署）：粘性 `visitor_key` cookie、登录评分 UI。
+1. **GitHub Pages**（push `main` 后 Actions 自动部署）：静态快照、封面、static-first 首页。大陆手机即使打不开 `workers.dev` 也能看到菜卡。
+2. **Worker + D1**（可选，实时评分 / 账号 / ingest）：`0004_raters.sql` 增加评分账号表。不需要新 secret（PIN 哈希复用 `OWNER_SESSION_SECRET`）。
 
 ```sh
 cd api
@@ -166,11 +186,15 @@ Worker 部署还会把种子封面的 JSON `coverUrl` 指到 Pages，并给 `/ap
 
 若库还停留在旧的 1–5 分约束，仍需先跑过 `0003_ratings_ten_point.sql`（上面的 `migrations apply` 会按顺序执行未应用的迁移）。不跑 `0003` 的话，新的 6–10 分写入会失败。
 
-### 2) GitHub Pages（静态前端）
+### 2) GitHub Pages（静态前端，读路径足够）
 
 1. Settings → Pages → **Source: GitHub Actions**
-2. 合并到 `main` 后等 `Deploy GitHub Pages`
+2. 合并到 `main` 后等 `Deploy GitHub Pages`（构建前会 `npm run snapshot`）
 3. 打开 https://averieh0202-maker.github.io/averie-cook/
+
+即使 Worker 不可达，首页也应显示三道已做的菜和封面。
+
+手动验证（模拟 API 不通）：把 `VITE_API_BASE_URL` 指到不可达地址后 `npm run build -w web && npm run preview -w web`，或在系统 hosts 里把 `averie-cook-api.averieh0202.workers.dev` 指到 `127.0.0.1`。首页仍应从 `/data/dishes-cooked.json` 与 `/covers/` 出字和封面，横幅为「网络不通，评分暂不可用」。
 
 ## 站长登录与评分账号
 
@@ -203,7 +227,8 @@ GitHub Pages（`averieh0202-maker.github.io`）和 Worker（`*.workers.dev`）�
 ## 目录
 
 ```
-web/     GitHub Pages 静态前端（无写入）
-api/     Worker + D1 + 可选 KV/R2
-data/    种子 JSON（导入 D1，不是运行时唯一存档）
+web/     GitHub Pages 静态前端（含 public/data 匿名快照与 public/covers）
+api/     Worker + D1 + 可选 KV/R2（实时评分 / 登录 / ingest）
+data/    种子 JSON（导入 D1；快照脚本读取，不含到匿名前端）
+scripts/ 导出匿名快照、检查 recipe 泄漏
 ```
