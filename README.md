@@ -157,6 +157,8 @@ curl -s -H "X-Ingest-Secret: $INGEST_SECRET" -H 'content-type: application/json'
   "$PAGES/api/ingest/dishes"
 
 # 上传封面（multipart 字段名 file），得到 coverPath 后再写进菜
+# 服务端会先套用 Averie 美食滤镜（RGB 曲线 → UnsharpMask），再写入 MEDIA。
+# 最长边缩到 1600，输出 JPEG 质量 82。详见 docs/美食滤镜参数.md。
 curl -s -H "X-Ingest-Secret: $INGEST_SECRET" \
   -F "file=@cover.jpg" \
   "$PAGES/api/ingest/upload"
@@ -166,7 +168,9 @@ curl -s -H "X-Ingest-Secret: $INGEST_SECRET" \
 
 `status`：`cooked`（已做）或 `want_cook`（想做）。`deleted: true` 软删除。同一 `id` 再 POST 为更新。
 
-兼容路径：`POST /api/owner/dishes` 与 `/api/owner/upload` 也可使用同一 ingest 头。
+兼容路径：`POST /api/owner/dishes` 与 `/api/owner/upload` 也可使用同一 ingest 头。站长上传封面走同一套滤镜。
+
+滤镜参数写在 `docs/美食滤镜参数.md` 与 `api/src/foodFilter.ts`（先曲线再锐化）。种子烩饭封面 JPEG 已是滤镜后的成片；首页读静态 `web/public/covers/`。已写入 D1/KV 的旧 blob **不会**被 seed 覆盖（`ON CONFLICT DO NOTHING`）。若生产 `/api/media/2026-09-14-chicken-pumpkin-risotto.jpg` 仍是未滤镜原图，需要删掉该 MEDIA 键或重新 ingest 上传。
 
 ## 部署
 
@@ -194,10 +198,19 @@ npx wrangler pages secret put INGEST_SECRET --project-name averie-cook
 
 # 构建（VITE_BASE=/、VITE_API_BASE_URL 为空）并发布
 npm ci
+npm test                         # 含美食滤镜 LUT / UnsharpMask
 npm run snapshot                 # 可选：从当前 API 刷新匿名快照
 npm run build:pages
 npx wrangler pages deploy        # 读取 pages_build_output_dir=./web/dist
 # 等价：npm run deploy:pages
+```
+
+封面滤镜跑在 Pages Functions 里（纯 JS + 可选 WebP wasm），**不要**假设 CF 上有 ImageMagick。部署后用 ingest 上传一张 JPEG，确认返回的封面比原图更暖（红通道被曲线抬高）。免费档 CPU 限额较紧时，先把图缩到最长边 ≤1600、文件 <2MB 再传。
+
+遗留 Worker 同一套 Hono，滤镜也会生效：
+
+```sh
+cd api && npx wrangler deploy
 ```
 
 `wrangler.toml` 的 `name = "averie-cook"` 必须对上 Pages 项目名。部署成功后终端会打印生产 URL，形如 `https://averie-cook.pages.dev`（若被占用则为 `https://averie-cook-<hash>.pages.dev`）。把 README 顶部与 `ASSET_BASE_URL` 换成实际 URL。
@@ -270,7 +283,7 @@ Cloudflare Pages 上前端与 `/api` **同源**，站长 httpOnly cookie（`Same
 | POST | `/api/account/login` | 昵称 + PIN → 注册或登录，返回 `visitorKey` 与 token |
 | GET | `/api/account/me` | 当前评分账号（无则 `{ rater: false }`） |
 | POST | `/api/ingest/dishes` | **INGEST_SECRET** 写入菜谱 |
-| POST | `/api/ingest/upload` | **INGEST_SECRET** 存图 |
+| POST | `/api/ingest/upload` | **INGEST_SECRET** 存图（先套美食滤镜再写入） |
 | GET | `/api/ingest/health` | ingest 密钥探活 |
 | POST | `/api/owner/login` | 站长密码 → httpOnly cookie **和** JSON `token`（跨站 Bearer） |
 
@@ -282,5 +295,6 @@ api/         Hono API（Pages Functions 与遗留 Worker 共用）+ D1 迁移
 functions/   Cloudflare Pages Functions 适配器（仅 /api/* 与 /health）
 wrangler.toml  Pages 项目 averie-cook（D1/KV 绑定、pages_build_output_dir）
 data/        种子 JSON（导入 D1；快照脚本读取，不含到匿名前端）
+docs/        美食滤镜参数（Averie 定稿曲线 + UnsharpMask）
 scripts/     导出匿名快照、检查 recipe 泄漏、校验 Pages 同源构建
 ```

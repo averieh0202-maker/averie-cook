@@ -11,7 +11,10 @@
     "test": "tsx --test src/*.test.ts"
   },
   "dependencies": {
-    "hono": "^4.9.8"
+    "@jsquash/webp": "^1.5.0",
+    "fast-png": "^8.0.0",
+    "hono": "^4.9.8",
+    "jpeg-js": "^0.4.4"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250913.0",
