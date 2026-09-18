@@ -169,6 +169,8 @@ export function mergeLiveDishes(baseDishes, liveDishes, catalog, coverFiles) {
     byId.set(live.id, {
       ...live,
       coverUrl: live.coverUrl || prev?.coverUrl || null,
+      cookedAt: live.cookedAt || prev?.cookedAt || null,
+      categories: live.categories.length ? live.categories : prev?.categories || [],
       ratingAvg: live.ratingCount > 0 ? live.ratingAvg : prev?.ratingAvg ?? null,
       ratingCount: live.ratingCount > 0 ? live.ratingCount : prev?.ratingCount ?? 0,
       wantEatCount: live.wantEatCount || prev?.wantEatCount || 0,

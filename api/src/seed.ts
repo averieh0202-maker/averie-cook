@@ -100,7 +100,8 @@ function coverBytes(): Uint8Array {
 let seeded = false;
 
 /**
- * Idempotent. Never overwrites existing dish rows (recipes/ratings stay after redeploy).
+ * Idempotent. Never overwrites recipes or ratings.
+ * Restores cooked_at / empty categories / missing cover_path from seed if ingest wiped them.
  * Empty D1 gets the 3 seed dishes + risotto cover blob.
  */
 export async function ensureSeed(env: Env): Promise<void> {
@@ -119,7 +120,14 @@ export async function ensureSeed(env: Env): Promise<void> {
         id, title, status, categories, cover_path, cooked_at, source_url, source_type,
         recipe, published, deleted_at, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, ?, ?)
-      ON CONFLICT(id) DO NOTHING`,
+      ON CONFLICT(id) DO UPDATE SET
+        cooked_at = COALESCE(dishes.cooked_at, excluded.cooked_at),
+        categories = CASE
+          WHEN dishes.categories IS NULL OR dishes.categories = '' OR dishes.categories = '[]'
+          THEN excluded.categories
+          ELSE dishes.categories
+        END,
+        cover_path = COALESCE(dishes.cover_path, excluded.cover_path)`
     ).bind(
       dish.id,
       dish.title,
