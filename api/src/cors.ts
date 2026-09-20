@@ -6,6 +6,7 @@
 export const STATIC_ALLOWED_ORIGINS = [
   "https://averieh0202-maker.github.io",
   "https://averie-cook.pages.dev",
+  "https://hehejojo-eat.pages.dev",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "http://localhost:4173",
@@ -14,9 +15,9 @@ export const STATIC_ALLOWED_ORIGINS = [
   "http://127.0.0.1:8788",
 ] as const;
 
-/** Preview deployments: https://<hash>.averie-cook.pages.dev */
+/** Preview deployments: https://<hash>.<project>.pages.dev */
 export const PAGES_PREVIEW_ORIGIN =
-  /^https:\/\/[a-z0-9-]+\.averie-cook\.pages\.dev$/i;
+  /^https:\/\/[a-z0-9-]+\.(averie-cook|hehejojo-eat)\.pages\.dev$/i;
 
 export function isAllowedOrigin(origin: string, requestUrl?: string): boolean {
   const trimmed = origin.trim();

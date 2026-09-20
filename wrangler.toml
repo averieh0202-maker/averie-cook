@@ -2,7 +2,7 @@
 # Legacy Worker remains in api/wrangler.toml (averie-cook-api.workers.dev).
 #
 # Bind the EXISTING D1 + MEDIA KV — do not create a second empty database.
-name = "averie-cook"
+name = "hehejojo-eat"
 compatibility_date = "2026-09-17"
 pages_build_output_dir = "./web/dist"
 
@@ -19,7 +19,7 @@ id = "8d276e34e2944f18800074735ffaba8b"
 [vars]
 # Canonical static origin. Pages Functions also swap to the request origin
 # when the host is *.pages.dev (preview deployments).
-ASSET_BASE_URL = "https://averie-cook.pages.dev"
+ASSET_BASE_URL = "https://hehejojo-eat.pages.dev"
 ENVIRONMENT = "production"
 
 # Secrets (never commit values). Reuse the same values as averie-cook-api:
