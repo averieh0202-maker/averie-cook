@@ -132,10 +132,10 @@ test("buildCoverUrl serves bundled seed covers from Pages, not workers.dev", () 
   );
   assert.equal(
     buildCoverUrl(
-      "covers/2026-09-15-porcini-risotto.svg",
+      "covers/2026-09-15-porcini-risotto.jpg",
       "https://averieh0202-maker.github.io/averie-cook",
       "https://averie-cook-api.averieh0202.workers.dev",
     ),
-    "https://averieh0202-maker.github.io/averie-cook/covers/2026-09-15-porcini-risotto.svg",
+    "https://averieh0202-maker.github.io/averie-cook/covers/2026-09-15-porcini-risotto.jpg",
   );
 });

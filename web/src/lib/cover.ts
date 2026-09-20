@@ -1,8 +1,8 @@
 /** Cover files that ship with the Pages build (same origin as the SPA). */
 export const PAGES_COVER_BY_DISH_ID: Record<string, string> = {
   "2026-09-14-chicken-pumpkin-risotto": "2026-09-14-chicken-pumpkin-risotto.jpg",
-  "2026-09-15-porcini-risotto": "2026-09-15-porcini-risotto.svg",
-  "2026-09-16-beef-short-rib-rice": "2026-09-16-beef-short-rib-rice.svg",
+  "2026-09-15-porcini-risotto": "2026-09-15-porcini-risotto.jpg",
+  "2026-09-16-beef-short-rib-rice": "2026-09-16-beef-short-rib-rice.jpg",
 };
 
 export const PAGES_COVER_FILES = new Set(Object.values(PAGES_COVER_BY_DISH_ID));

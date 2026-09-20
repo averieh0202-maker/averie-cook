@@ -14,7 +14,7 @@ test("filenameFromCoverUrl reads Pages, uploads, and relative covers", () => {
     filenameFromCoverUrl("https://averieh0202-maker.github.io/averie-cook/covers/2026-09-14-chicken-pumpkin-risotto.jpg"),
     "2026-09-14-chicken-pumpkin-risotto.jpg",
   );
-  assert.equal(filenameFromCoverUrl("covers/2026-09-15-porcini-risotto.svg"), "2026-09-15-porcini-risotto.svg");
+  assert.equal(filenameFromCoverUrl("covers/2026-09-15-porcini-risotto.jpg"), "2026-09-15-porcini-risotto.jpg");
   assert.equal(
     filenameFromCoverUrl("https://averie-cook-api.averieh0202.workers.dev/api/media/abc.jpg"),
     "abc.jpg",
@@ -38,11 +38,11 @@ test("resolveCoverUrl prefers Pages files and never returns workers.dev", () => 
   );
   assert.equal(
     resolveCoverUrl({ id: "2026-09-15-porcini-risotto", coverUrl: null }),
-    "/covers/2026-09-15-porcini-risotto.svg",
+    "/covers/2026-09-15-porcini-risotto.jpg",
   );
   assert.equal(
     resolveCoverUrl({ id: "2026-09-16-beef-short-rib-rice", coverUrl: null }),
-    "/covers/2026-09-16-beef-short-rib-rice.svg",
+    "/covers/2026-09-16-beef-short-rib-rice.jpg",
   );
   assert.equal(
     resolveCoverUrl("https://averie-cook-api.averieh0202.workers.dev/api/media/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.jpg"),
@@ -53,14 +53,17 @@ test("resolveCoverUrl prefers Pages files and never returns workers.dev", () => 
   assert.equal(resolved && isWorkerMediaUrl(resolved), false);
 });
 
-test("placeholder SVGs are UTF-8 and contain the dish titles", () => {
+test("bundled home covers are JPEG files", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "../..");
-  const porcini = readFileSync(join(root, "public/covers/2026-09-15-porcini-risotto.svg"), "utf8");
-  const beef = readFileSync(join(root, "public/covers/2026-09-16-beef-short-rib-rice.svg"), "utf8");
-  assert.match(porcini, /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
-  assert.match(beef, /xmlns="http:\/\/www.w3.org\/2000\/svg"/);
-  assert.equal(porcini.includes("牛肝菌意式烩饭"), true);
-  assert.equal(beef.includes("牛肋条卤肉饭"), true);
-  assert.equal(porcini.includes("暂无成菜照片"), true);
-  assert.equal(beef.includes("暂无成菜照片"), true);
+  for (const name of [
+    "2026-09-14-chicken-pumpkin-risotto.jpg",
+    "2026-09-15-porcini-risotto.jpg",
+    "2026-09-16-beef-short-rib-rice.jpg",
+  ]) {
+    const buf = readFileSync(join(root, "public/covers", name));
+    assert.equal(buf[0], 0xff);
+    assert.equal(buf[1], 0xd8);
+    assert.equal(buf[2], 0xff);
+    assert.ok(buf.length > 10_000);
+  }
 });

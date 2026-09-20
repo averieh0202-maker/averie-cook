@@ -11,8 +11,8 @@ import {
 
 const coverFiles = new Set([
   "2026-09-14-chicken-pumpkin-risotto.jpg",
-  "2026-09-15-porcini-risotto.svg",
-  "2026-09-16-beef-short-rib-rice.svg",
+  "2026-09-15-porcini-risotto.jpg",
+  "2026-09-16-beef-short-rib-rice.jpg",
 ]);
 
 const seed = {
@@ -85,7 +85,7 @@ test("live overlay copies ratings but never Worker media URLs", () => {
   assert.equal(risotto.myScore, null);
   assert.equal(risotto.wanted, false);
   assert.equal(risotto.coverUrl, "covers/2026-09-14-chicken-pumpkin-risotto.jpg");
-  assert.equal(pagesCoverForDish("2026-09-15-porcini-risotto", coverFiles), "covers/2026-09-15-porcini-risotto.svg");
+  assert.equal(pagesCoverForDish("2026-09-15-porcini-risotto", coverFiles), "covers/2026-09-15-porcini-risotto.jpg");
   assert.deepEqual(jsonContainsPrivateTokens({ dishes: merged }), []);
 });
 

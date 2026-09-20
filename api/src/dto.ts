@@ -91,8 +91,8 @@ const PUBLIC_DISH_KEYS: Array<keyof PublicDish> = [
 /** Seed / bundled photos that also live on GitHub Pages (better reach from CN than workers.dev). */
 export const PAGES_COVER_FILES = new Set([
   "2026-09-14-chicken-pumpkin-risotto.jpg",
-  "2026-09-15-porcini-risotto.svg",
-  "2026-09-16-beef-short-rib-rice.svg",
+  "2026-09-15-porcini-risotto.jpg",
+  "2026-09-16-beef-short-rib-rice.jpg",
 ]);
 
 export function buildCoverUrl(
