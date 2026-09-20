@@ -8,7 +8,7 @@
     "deploy": "wrangler d1 migrations apply averie-cook --remote && wrangler deploy",
     "seed:local": "wrangler d1 migrations apply averie-cook --local",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test src/*.test.ts"
+    "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
     "@jsquash/webp": "^1.5.0",

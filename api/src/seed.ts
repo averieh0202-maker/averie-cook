@@ -106,6 +106,8 @@ let seeded = false;
  */
 export async function ensureSeed(env: Env): Promise<void> {
   if (seeded) return;
+  // Existing installations were migrated already. Do not rewrite seeds/media on cold starts.
+  if (await env.DB.prepare('SELECT id FROM dishes LIMIT 1').first()) { seeded = true; return; }
   const catStmts = SEED_CATEGORIES.map((cat) =>
     env.DB.prepare(
       "INSERT INTO categories (id, name, sort) VALUES (?, ?, ?) ON CONFLICT(id) DO NOTHING",
@@ -147,5 +149,9 @@ export async function ensureSeed(env: Env): Promise<void> {
   await putMedia(env, SEED_COVER_FILENAME, coverBytes(), "image/jpeg");
   // Seed risotto cover + designed placeholders also live on GitHub Pages (`web/public/covers/`).
   // Homepage reads those same-origin files; it does not wait on workers.dev /api/media.
+  await env.DB.prepare(`INSERT OR IGNORE INTO entries(id,kind,target_id,occurred_on,created_at,updated_at)
+    SELECT 'legacy-' || id,'home',id,cooked_at,created_at,updated_at FROM dishes
+    WHERE status='cooked' AND cooked_at IS NOT NULL AND deleted_at IS NULL
+    AND NOT EXISTS(SELECT 1 FROM entries e WHERE e.kind='home' AND e.target_id=dishes.id)`).run();
   seeded = true;
 }

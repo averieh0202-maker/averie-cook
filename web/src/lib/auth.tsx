@@ -7,6 +7,9 @@ import {
   getCachedRaterName,
   ownerMe,
   ownerLogout,
+  getRaterToken,
+  setRaterToken,
+  setCachedRaterName,
 } from "./api";
 import { copy } from "./copy";
 
@@ -45,22 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refresh = async () => {
     try {
-      const [ownerRes, raterRes] = await Promise.all([
-        ownerMe().catch(() => ({ owner: false })),
-        accountMe().catch(() => ({ rater: false as const })),
-      ]);
-      setOwner(ownerRes.owner);
-      if (!ownerRes.owner) clearOwnerToken();
-      if (raterRes.rater && raterRes.displayName) {
-        setRater({ displayName: raterRes.displayName });
+      if (!getRaterToken()) { setRater(null); return; }
+      const res = await accountMe();
+      if (res.rater && res.displayName) {
+        setRater({displayName:res.displayName});
+        setCachedRaterName(res.displayName);
+        if (res.token) setRaterToken(res.token);
       } else {
+        clearRaterSession();
         setRater(null);
+        setIdentityEpoch(n=>n+1);
       }
     } catch {
-      setOwner(false);
-    } finally {
-      setReady(true);
-    }
+      // A transport failure is not an authentication failure. Keep the remembered account.
+    } finally { setReady(true); }
   };
 
   useEffect(() => {

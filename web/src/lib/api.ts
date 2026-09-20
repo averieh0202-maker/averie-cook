@@ -122,7 +122,7 @@ function timeoutSignal(parent: AbortSignal | undefined, ms: number): { signal: A
   };
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("X-Visitor-Key", getVisitorKey());
   const ownerToken = getOwnerToken();
@@ -141,6 +141,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const parentSignal = init.signal ?? undefined;
   const { signal, cancel } = timeoutSignal(parentSignal, timeoutMs);
   let res: Response;
+  let text: string;
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
@@ -148,6 +149,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       credentials: "include",
       signal,
     });
+    text = await res.text();
   } catch (err) {
     cancel();
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -161,7 +163,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw err;
   }
   cancel();
-  const text = await res.text();
+
   let data: unknown = null;
   try {
     data = text ? JSON.parse(text) : null;
@@ -225,7 +227,7 @@ export async function ownerLogout() {
 }
 
 export function accountMe() {
-  return request<{ rater: boolean; displayName?: string; visitorKey?: string }>("/api/account/me");
+  return request<{ rater: boolean; displayName?: string; visitorKey?: string; token?: string }>("/api/account/me");
 }
 
 export async function accountLogin(displayName: string, pin: string) {

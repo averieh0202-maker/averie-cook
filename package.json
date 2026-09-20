@@ -1,7 +1,7 @@
 {
   "name": "averie-cook",
   "private": true,
-  "description": "Averie 做饭档案站 — 做过的 / 想做的 / 想吃的",
+  "description": "Averie \u505a\u996d\u6863\u6848\u7ad9 \u2014 \u505a\u8fc7\u7684 / \u60f3\u505a\u7684 / \u60f3\u5403\u7684",
   "workspaces": [
     "web",
     "api"
@@ -15,7 +15,7 @@
     "preview": "npm run preview -w web",
     "pages:dev": "npm run build:pages && npx wrangler pages dev",
     "deploy:pages": "npm run build:pages && npx wrangler pages deploy",
-    "test": "npm run test -w api && npx tsx --test web/src/lib/*.test.ts scripts/export-public-snapshot.test.mjs && bash scripts/verify-recipe-leak.sh --snapshot-only",
+    "test": "npm run test -w api && node --import tsx --test web/src/lib/*.test.ts scripts/export-public-snapshot.test.mjs && bash scripts/verify-recipe-leak.sh --snapshot-only",
     "typecheck": "npm run typecheck -w web && npm run typecheck -w api && npx tsc --noEmit -p functions/tsconfig.json",
     "seed:local": "npm run seed:local -w api",
     "snapshot": "node scripts/export-public-snapshot.mjs"

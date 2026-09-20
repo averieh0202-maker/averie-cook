@@ -5,6 +5,7 @@
  * Public dish JSON never includes recipe / notes / calories.
  */
 import { Hono } from "hono";
+import journal, { authenticatedRater } from "./journal";
 import type { Context } from "hono";
 import { cors } from "hono/cors";
 import {
@@ -85,7 +86,7 @@ app.use(
       if (!origin) return "";
       return isAllowedOrigin(origin, c.req.url) ? origin : "";
     },
-    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization", "X-Visitor-Key", "X-Rater-Token", "X-Ingest-Secret"],
     credentials: true,
     maxAge: 86400,
@@ -218,92 +219,10 @@ app.get("/api/dishes/:id", async (c) => {
 });
 
 app.post("/api/dishes/:id/rate", async (c) => {
-  const id = c.req.param("id");
-  if (!DISH_ID_RE.test(id)) return c.json({ error: "无效的菜谱 id" }, 400);
-  const visitorKey = readVisitorKey(c);
-  if (!visitorKey) return c.json({ error: "需要有效的 visitor_key" }, 400);
-
-  let body: { score?: unknown };
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "请求体必须是 JSON" }, 400);
-  }
-  const score = parseRatingScore(body.score);
-  if (score == null) {
-    return c.json({ error: "score 须为 1–10 的整数" }, 400);
-  }
-
-  const dish = await c.env.DB.prepare(
-    "SELECT id FROM dishes WHERE id = ? AND published = 1 AND deleted_at IS NULL",
-  )
-    .bind(id)
-    .first();
-  if (!dish) return c.json({ error: "找不到这道菜" }, 404);
-
-  const now = new Date().toISOString();
-  await c.env.DB.prepare(
-    `INSERT INTO ratings (dish_id, visitor_key, score, updated_at)
-     VALUES (?, ?, ?, ?)
-     ON CONFLICT(dish_id, visitor_key) DO UPDATE SET score = excluded.score, updated_at = excluded.updated_at`,
-  )
-    .bind(id, visitorKey, score, now)
-    .run();
-
-  const agg = await c.env.DB.prepare(
-    "SELECT COALESCE(SUM(score),0) AS rating_sum, COUNT(*) AS rating_count FROM ratings WHERE dish_id = ?",
-  )
-    .bind(id)
-    .first<{ rating_sum: number; rating_count: number }>();
-  const count = Number(agg?.rating_count) || 0;
-  const sum = Number(agg?.rating_sum) || 0;
-  return c.json({
-    ok: true,
-    myScore: score,
-    ratingCount: count,
-    ratingAvg: count ? Math.round((sum / count) * 10) / 10 : null,
-  });
+  return c.json({ error: "请在对应日期的家食记中评分" }, 410);
 });
 
-app.post("/api/dishes/:id/want-eat", async (c) => {
-  const id = c.req.param("id");
-  if (!DISH_ID_RE.test(id)) return c.json({ error: "无效的菜谱 id" }, 400);
-  const visitorKey = readVisitorKey(c);
-  if (!visitorKey) return c.json({ error: "需要有效的 visitor_key" }, 400);
-
-  const dish = await c.env.DB.prepare(
-    "SELECT id FROM dishes WHERE id = ? AND published = 1 AND deleted_at IS NULL",
-  )
-    .bind(id)
-    .first();
-  if (!dish) return c.json({ error: "找不到这道菜" }, 404);
-
-  const existing = await c.env.DB.prepare(
-    "SELECT 1 AS x FROM want_eat WHERE dish_id = ? AND visitor_key = ?",
-  )
-    .bind(id, visitorKey)
-    .first();
-
-  if (existing) {
-    await c.env.DB.prepare("DELETE FROM want_eat WHERE dish_id = ? AND visitor_key = ?")
-      .bind(id, visitorKey)
-      .run();
-  } else {
-    await c.env.DB.prepare(
-      "INSERT INTO want_eat (dish_id, visitor_key, created_at) VALUES (?, ?, ?)",
-    )
-      .bind(id, visitorKey, new Date().toISOString())
-      .run();
-  }
-
-  const agg = await c.env.DB.prepare(
-    "SELECT COUNT(*) AS c FROM want_eat WHERE dish_id = ?",
-  )
-    .bind(id)
-    .first<{ c: number }>();
-  const wantEatCount = Number(agg?.c) || 0;
-  return c.json({ ok: true, wanted: !existing, wantEatCount });
-});
+app.post("/api/dishes/:id/want-eat", (c) => c.json({ error: "请使用新版点菜接口" }, 410));
 
 app.get("/api/owner/me", async (c) => {
   return c.json({ owner: await isOwner(c) });
@@ -341,14 +260,10 @@ app.post("/api/owner/logout", async (c) => {
 });
 
 app.get("/api/account/me", async (c) => {
-  const rater = await resolveRater(
-    c.env.DB,
-    c.env.OWNER_SESSION_SECRET,
-    readRaterToken(c),
-    readVisitorKey(c),
-  );
+  const rater = await authenticatedRater(c);
   if (!rater) return c.json({ rater: false });
-  return c.json({ rater: true, displayName: rater.displayName, visitorKey: rater.visitorKey });
+  const token = await issueRaterToken(c.env.OWNER_SESSION_SECRET, rater.visitorKey, rater.displayName);
+  return c.json({ rater: true, displayName: rater.displayName, visitorKey: rater.visitorKey, token });
 });
 
 app.post("/api/account/login", async (c) => {
@@ -370,7 +285,7 @@ app.post("/api/account/login", async (c) => {
   const result = await loginOrRegisterRater(c.env.DB, secret, {
     displayName: body.displayName,
     pin: body.pin,
-    guestVisitorKey: readVisitorKey(c),
+    guestVisitorKey: null,
   });
   if (!result.ok) return c.json({ error: result.error }, result.status);
 
@@ -496,6 +411,12 @@ app.get("/api/media/:filename", async (c) => {
   if (!rec) return c.json({ error: "找不到图片" }, 404);
   return mediaResponse(rec.body, rec.mime);
 });
+
+app.post("/api/journal/upload", async (c) => {
+  if (!(await authenticatedRater(c)) && !(await ownerOrIngest(c))) return c.json({error:"请先登录"},401);
+  return uploadCover(c);
+});
+app.route("/api/journal", journal);
 
 app.all("*", (c) => c.json({ error: "Not found" }, 404));
 
