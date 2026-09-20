@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T03:34:59.276Z",
+  "generatedAt": "2026-09-20T03:36:00.833Z",
   "source": "seed+live",
   "categories": [
     {
@@ -75,7 +75,7 @@
           "sort": 1
         }
       ],
-      "coverUrl": "covers/2026-09-16-beef-short-rib-rice.svg",
+      "coverUrl": "covers/2026-09-16-beef-short-rib-rice.jpg",
       "cookedAt": "2026-09-16",
       "sourceUrl": null,
       "sourceType": null,
@@ -99,7 +99,7 @@
           "sort": 2
         }
       ],
-      "coverUrl": "covers/2026-09-15-porcini-risotto.svg",
+      "coverUrl": "covers/2026-09-15-porcini-risotto.jpg",
       "cookedAt": "2026-09-15",
       "sourceUrl": null,
       "sourceType": null,
@@ -110,7 +110,7 @@
       "wanted": false,
       "published": true,
       "createdAt": "2026-09-17T03:00:20.939Z",
-      "updatedAt": "2026-09-20 03:34:37"
+      "updatedAt": "2026-09-20 03:35:55"
     },
     {
       "id": "2026-09-14-chicken-pumpkin-risotto",
