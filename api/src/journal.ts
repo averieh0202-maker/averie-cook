@@ -43,7 +43,7 @@ export async function authenticatedRater(c: C) {
   return row ? { visitorKey: token.visitorKey, displayName: row.display_name } : null;
 }
 async function writer(c: C) {
-  if (await ingestAuthorized(c) || await isOwner(c)) return { visitorKey: 'owner', displayName: 'Averie', admin: true };
+  if (await ingestAuthorized(c) || await isOwner(c)) return { visitorKey: 'owner', displayName: 'HEHE', admin: true };
   const user = await authenticatedRater(c);
   return user ? { ...user, admin: false } : null;
 }
@@ -210,13 +210,13 @@ journal.get('/comments/:scope/:id',async c=>{
   return c.json({comments:result.results.map(r=>({id:r.id,author:r.author_name,body:r.body,createdAt:r.created_at,mine:r.visitor_key===user?.visitorKey}))});
 });
 journal.post('/comments/:scope/:id',async c=>{
-  // owner / ingest may proxy-post as Averie; raters still post as themselves.
+  // owner / ingest may proxy-post as HEHE (Averie's site account); raters still post as themselves.
   const user=await writer(c);if(!user)return c.json({error:'请先登录再评论'},401);
   let visitorKey=user.visitorKey, authorName=user.displayName;
   if(user.admin){
-    const averie=await c.env.DB.prepare('SELECT visitor_key,display_name FROM raters WHERE lower(display_name)=? LIMIT 1').bind('averie').first<{visitor_key:string;display_name:string}>();
-    if(averie){ visitorKey=averie.visitor_key; authorName=averie.display_name; }
-    else { visitorKey='owner'; authorName='Averie'; }
+    const hehe=await c.env.DB.prepare('SELECT visitor_key,display_name FROM raters WHERE lower(display_name)=? LIMIT 1').bind('hehe').first<{visitor_key:string;display_name:string}>();
+    if(hehe){ visitorKey=hehe.visitor_key; authorName=hehe.display_name; }
+    else { visitorKey='owner'; authorName='HEHE'; }
   }
   const scope=c.req.param('scope'),id=c.req.param('id'),body=await c.req.json<Row>();
   if(!await commentTarget(c,scope,id))return c.json({error:scope==='board'?'这轮点菜已结束，评论已清除':'内容不存在'},404);
