@@ -93,6 +93,7 @@ export const PAGES_COVER_FILES = new Set([
   "2026-09-14-chicken-pumpkin-risotto.jpg",
   "2026-09-15-porcini-risotto.jpg",
   "2026-09-16-beef-short-rib-rice.jpg",
+  "2026-09-11-dan-huhu-eatout.jpg",
 ]);
 
 export function buildCoverUrl(

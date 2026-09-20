@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-20T03:36:11.000Z",
+  "generatedAt": "2026-09-20T03:44:02.000Z",
   "dishes": [
     {
       "id": "2026-09-15-porcini-risotto",
@@ -65,7 +65,24 @@
       "commentCount": 0
     }
   ],
-  "restaurants": [],
+  "restaurants": [
+    {
+      "id": "2026-09-11-dan-huhu-eatout",
+      "title": "旦",
+      "location": "成都",
+      "categories": [
+        "外食"
+      ],
+      "coverUrl": "covers/2026-09-11-dan-huhu-eatout.jpg",
+      "notes": "旦huhu",
+      "ratingAvg": null,
+      "ratingCount": 0,
+      "wantEatCount": 0,
+      "wanted": false,
+      "boardId": null,
+      "commentCount": 0
+    }
+  ],
   "entries": [
     {
       "id": "legacy-2026-09-16-beef-short-rib-rice",
@@ -105,6 +122,19 @@
       "ratingAvg": 8.5,
       "myScore": null,
       "commentCount": 1
+    },
+    {
+      "id": "entry-2026-09-11-dan-huhu-eatout",
+      "kind": "out",
+      "targetId": "2026-09-11-dan-huhu-eatout",
+      "date": "2026-09-11",
+      "meal": "晚餐",
+      "notes": "",
+      "coverUrl": "covers/2026-09-11-dan-huhu-eatout.jpg",
+      "ratingAvg": null,
+      "ratingCount": 0,
+      "myScore": null,
+      "commentCount": 0
     }
   ],
   "boards": [
