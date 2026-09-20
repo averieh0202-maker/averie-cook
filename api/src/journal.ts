@@ -210,16 +210,23 @@ journal.get('/comments/:scope/:id',async c=>{
   return c.json({comments:result.results.map(r=>({id:r.id,author:r.author_name,body:r.body,createdAt:r.created_at,mine:r.visitor_key===user?.visitorKey}))});
 });
 journal.post('/comments/:scope/:id',async c=>{
-  const user=await authenticatedRater(c);if(!user)return c.json({error:'请先登录再评论'},401);
+  // owner / ingest may proxy-post as Averie; raters still post as themselves.
+  const user=await writer(c);if(!user)return c.json({error:'请先登录再评论'},401);
+  let visitorKey=user.visitorKey, authorName=user.displayName;
+  if(user.admin){
+    const averie=await c.env.DB.prepare('SELECT visitor_key,display_name FROM raters WHERE lower(display_name)=? LIMIT 1').bind('averie').first<{visitor_key:string;display_name:string}>();
+    if(averie){ visitorKey=averie.visitor_key; authorName=averie.display_name; }
+    else { visitorKey='owner'; authorName='Averie'; }
+  }
   const scope=c.req.param('scope'),id=c.req.param('id'),body=await c.req.json<Row>();
   if(!await commentTarget(c,scope,id))return c.json({error:scope==='board'?'这轮点菜已结束，评论已清除':'内容不存在'},404);
   if(typeof body.body!=='string'||!body.body.trim()||body.body.length>2000)return c.json({error:'评论须为1–2000字'},400);
   const commentId=crypto.randomUUID(),now=new Date().toISOString();
   if(scope==='board'){
     // The INSERT SELECT also handles cancellation after the existence check.
-    const result=await c.env.DB.prepare('INSERT INTO board_comments(id,board_id,visitor_key,author_name,body,created_at) SELECT ?,id,?,?,?,? FROM board_entries WHERE id=?').bind(commentId,user.visitorKey,user.displayName,body.body.trim(),now,id).run();
+    const result=await c.env.DB.prepare('INSERT INTO board_comments(id,board_id,visitor_key,author_name,body,created_at) SELECT ?,id,?,?,?,? FROM board_entries WHERE id=?').bind(commentId,visitorKey,authorName,body.body.trim(),now,id).run();
     if(!result.meta.changes)return c.json({error:'这轮点菜已结束，评论已清除'},409);
-  }else await c.env.DB.prepare('INSERT INTO comments(id,scope,target_id,visitor_key,author_name,body,created_at) VALUES(?,?,?,?,?,?,?)').bind(commentId,scope,id,user.visitorKey,user.displayName,body.body.trim(),now).run();
+  }else await c.env.DB.prepare('INSERT INTO comments(id,scope,target_id,visitor_key,author_name,body,created_at) VALUES(?,?,?,?,?,?,?)').bind(commentId,scope,id,visitorKey,authorName,body.body.trim(),now).run();
   return c.json({ok:true,id:commentId});
 });
 journal.delete('/comments/:scope/:id',async c=>{
