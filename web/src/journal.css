@@ -12,3 +12,5 @@ body{background:var(--j-paper);color:var(--j-ink);background-image:radial-gradie
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;scroll-behavior:auto!important}}
 
 .entry-date{display:flex;align-items:baseline;justify-content:space-between;gap:6px;margin:7px 1px 11px;padding-bottom:9px;border-bottom:1px dashed var(--j-line)}.entry-date time{font:22px Georgia;letter-spacing:.6px}.entry-date small{font-size:9px;color:var(--j-muted)}.diary-grid{row-gap:23px}@media(max-width:600px){.entry-date time{font-size:20px}.entry-date small{font-size:8px}.diary-grid{row-gap:20px}}
+
+.cuisine-fieldset{border:0;padding:0;margin:0 0 18px}.cuisine-fieldset legend{font-size:12px;margin-bottom:10px}.cuisine-options{display:flex;flex-wrap:wrap;gap:8px}.cuisine-option{display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--j-line);border-radius:999px;font-size:13px;cursor:pointer}.cuisine-option:has(input:checked){border-color:var(--j-accent);color:var(--j-accent)}.cuisine-option input{accent-color:var(--j-accent)}

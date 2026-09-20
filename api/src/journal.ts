@@ -13,6 +13,29 @@ function textField(value: unknown, max = 2000) { return typeof value === 'string
 export function validDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;
 }
+
+const HOME_CUISINE_TAGS = ["中餐", "西餐", "日料", "中东"] as const;
+const HOME_CUISINE_SET = new Set<string>(HOME_CUISINE_TAGS);
+const LEGACY_HOME: Record<string, string> = {
+  中式: "中餐", chinese: "中餐", 中餐: "中餐",
+  意式: "西餐", italian: "西餐", 西式: "西餐", 西餐: "西餐",
+  日式: "日料", japanese: "日料", 日料: "日料",
+  中东: "中东",
+};
+function normalizeHomeCuisineTags(input: unknown): string[] | null {
+  if (!Array.isArray(input)) return null;
+  const out: string[] = [];
+  for (const raw of input) {
+    if (typeof raw !== "string") return null;
+    const key = raw.trim();
+    if (!key || key.length > 30) return null;
+    const mapped = LEGACY_HOME[key] || LEGACY_HOME[key.toLowerCase()] || (HOME_CUISINE_SET.has(key) ? key : null);
+    if (!mapped) return null;
+    if (!out.includes(mapped)) out.push(mapped);
+  }
+  return out;
+}
+
 export async function authenticatedRater(c: C) {
   const token = await verifyRaterSession(readRaterToken(c), c.env.OWNER_SESSION_SECRET);
   if (!token) return null;
@@ -91,8 +114,9 @@ journal.post('/dishes', async c => {
   if(existing && !user.admin && existing.author_key!==user.visitorKey) return c.json({error:'只能修改自己上传的菜品'},403);
   const title=textField(body.title ?? existing?.title,80), status=body.status ?? existing?.status ?? 'want_cook';
   if(!title || !['cooked','want_cook'].includes(status)) return c.json({error:'请填写菜名和有效状态'},400);
-  const cats=body.categories ?? json(existing?.categories);
-  if(!Array.isArray(cats) || cats.length>12 || cats.some(x=>typeof x!=='string'||!x.trim()||x.length>30)) return c.json({error:'分类最多12项，每项不超过30字'},400);
+    const rawCats=body.categories ?? json(existing?.categories);
+  const cats=normalizeHomeCuisineTags(rawCats);
+  if(!cats || cats.length<1) return c.json({error:'请至少选择一个分类：中餐、西餐、日料、中东'},400);
   const path=body.coverPath===undefined ? existing?.cover_path ?? null : body.coverPath ? sanitizeCoverPath(body.coverPath) : null;
   if(body.coverPath && !path) return c.json({error:'图片路径无效'},400);
   const recipe=body.recipe ?? json(existing?.recipe,{});
